@@ -10,6 +10,7 @@ from model import get_model
 from dataset import load_data
 from client import train, test
 from server import get_strategy
+from fedagain import FedAgainStrategy, compute_benchmark_error
 import config
 
 
@@ -53,6 +54,13 @@ class FlowerClient(fl.client.NumPyClient):
         """Train the model on local data."""
         self.set_parameters(parameters)
         
+        # Compute benchmark error on incoming global model (for FedAgain)
+        benchmark_error = 0.0
+        if config.STRATEGY == "FedAgain":
+            # Use validation set as benchmark
+            benchmark_error = compute_benchmark_error(self.model, self.valloader, self.device)
+        
+        # Train locally
         train_loss, train_acc = train(
             self.model,
             self.trainloader,
@@ -62,9 +70,11 @@ class FlowerClient(fl.client.NumPyClient):
             momentum=config.MOMENTUM
         )
         
-        print(f"  Client {int(self.cid) + 1}: Loss={train_loss:.4f}, Accuracy={train_acc:.4f}")
+        print(f"  Client {int(self.cid) + 1}: Loss={train_loss:.4f}, Accuracy={train_acc:.4f}, BenchErr={benchmark_error:.4f}")
         
-        return self.get_parameters(config_dict={}), len(self.trainloader.dataset), {}
+        # Return parameters with benchmark error in metrics
+        metrics = {"benchmark_error": benchmark_error} if config.STRATEGY == "FedAgain" else {}
+        return self.get_parameters(config_dict={}), len(self.trainloader.dataset), metrics
     
     def evaluate(self, parameters, config_dict):
         """Evaluate the model on local validation data."""
@@ -156,13 +166,20 @@ if __name__ == "__main__":
     elif config.STRATEGY == "Bulyan":
         print(f"  - Byzantine clients to tolerate: {config.BULYAN_NUM_MALICIOUS}")
     
-    # Initialize FedOpt optimizer if needed
+    # Initialize strategy-specific components
     fedopt_m = None
     fedopt_v = None
     fedopt_t = 0
+    fedagain_strategy = None
+    
     if config.STRATEGY == "FedOpt":
         # Will be initialized after first round
         pass
+    elif config.STRATEGY == "FedAgain":
+        # Initialize FedAgain strategy
+        epsilon = config.FEDAGAIN_EPSILON if hasattr(config, 'FEDAGAIN_EPSILON') else 1e-6
+        fedagain_strategy = FedAgainStrategy(epsilon=epsilon)
+        print(f"  - FedAgain ε: {epsilon}")
     
     print("\n" + "=" * 70)
     print(f"Starting Federated Learning with {config.STRATEGY}...")
@@ -190,7 +207,11 @@ if __name__ == "__main__":
         # Aggregate parameters manually based on strategy
         import numpy as np
         
-        if config.STRATEGY == "Bulyan":
+        if config.STRATEGY == "FedAgain":
+            # FedAgain: Trust-based aggregation
+            parameters = fedagain_strategy.aggregate(results, parameters)
+        
+        elif config.STRATEGY == "Bulyan":
             # Bulyan: Byzantine-robust aggregation
             # Remove outliers, then use coordinate-wise median
             num_params = len(results[0][0])

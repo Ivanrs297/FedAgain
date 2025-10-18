@@ -7,9 +7,9 @@ Modify these settings to change dataset, model, and training parameters.
 DATASET = "MNIST"  # Options: "EMNIST", "MNIST", "CIFAR10"
 
 # Federated Learning Configuration
-STRATEGY = "Bulyan"  # Options: "FedAvg", "FedProx", "FedOpt", "FedMedian", "Bulyan"
+STRATEGY = "FedAgain"  # Options: "FedAvg", "FedProx", "FedOpt", "FedMedian", "Bulyan", "FedAgain"
 NUM_CLIENTS = 5
-NUM_ROUNDS = 1
+NUM_ROUNDS = 3
 LOCAL_EPOCHS = 1
 
 # Data Distribution Configuration
@@ -25,6 +25,7 @@ FEDOPT_BETA2 = 0.99  # FedOpt second moment parameter
 FEDOPT_TAU = 1e-3  # FedOpt adaptive learning rate parameter
 BULYAN_NUM_MALICIOUS = 1  # Bulyan: number of Byzantine/malicious clients to tolerate
 BULYAN_TO_KEEP = None  # Bulyan: number of clients to keep (None = auto)
+FEDAGAIN_EPSILON = 1e-6  # FedAgain: small constant for numerical stability in trust weight
 
 # Training Configuration
 BATCH_SIZE = 32

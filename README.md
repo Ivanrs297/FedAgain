@@ -99,6 +99,7 @@ FEDOPT_BETA2 = 0.99              # FedOpt second moment
 FEDOPT_TAU = 1e-3                # FedOpt epsilon/tau
 BULYAN_NUM_MALICIOUS = 1         # Bulyan: number of Byzantine clients to tolerate
 BULYAN_TO_KEEP = None            # Bulyan: clients to keep (None = auto)
+FEDAGAIN_EPSILON = 1e-6          # FedAgain: numerical stability constant
 ```
 
 ## Supported Datasets
@@ -132,6 +133,7 @@ Using Flower's built-in implementations:
 | **FedOpt** | FedAdam (Reddi et al., 2020) | Server-side adaptive optimization (Adam) |
 | **FedMedian** | Coordinate-wise Median | Robust to Byzantine attacks and outliers |
 | **Bulyan** | Byzantine-robust (Mhamdi et al., 2018) | Removes outliers before aggregation |
+| **FedAgain** | Trust-based aggregation (Custom) | Weights clients by benchmark error × divergence |
 
 ### Strategy Details
 
@@ -140,6 +142,7 @@ Using Flower's built-in implementations:
 - **FedOpt (FedAdam)**: Uses server-side Adam optimizer for potentially faster convergence
 - **FedMedian**: Uses coordinate-wise median - more robust to outliers/malicious clients
 - **Bulyan**: Byzantine-robust aggregation - removes outliers before computing mean (strongest defense against malicious clients)
+- **FedAgain**: Trust-based weighting - clients with lower benchmark error and smaller divergence get higher weight (T_k = 1/(E_k×D_k+ε))
 
 ## Adding New Datasets
 
