@@ -52,7 +52,7 @@ def get_strategy(strategy_name: str = "FedAvg", **kwargs):
             proximal_mu=proximal_mu
         )
     
-    elif strategy_name == "FedOpt":
+    elif strategy_name == "FedAdam":
         server_lr = kwargs.get("server_lr", 1.0)
         beta1 = kwargs.get("beta1", 0.9)
         beta2 = kwargs.get("beta2", 0.99)
@@ -83,6 +83,6 @@ def get_strategy(strategy_name: str = "FedAvg", **kwargs):
     else:
         raise ValueError(
             f"Unknown strategy: {strategy_name}. "
-            f"Choose from: FedAvg, FedProx, FedOpt, FedMedian, Bulyan"
+            f"Choose from: FedAvg, FedProx, FedAdam, FedMedian, Bulyan"
         )
 

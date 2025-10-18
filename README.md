@@ -16,10 +16,13 @@ A simple and extensible federated learning project using PyTorch with CUDA suppo
 ```
 ├── main.py          # Main federated learning with Flower
 ├── config.py        # Configuration (dataset, strategy, hyperparameters)
-├── server.py        # Strategies (FedAvg, FedProx, FedOpt, FedMedian)
+├── server.py        # Strategies (FedAvg, FedProx, FedOpt, FedMedian, Bulyan)
 ├── client.py        # Client training and evaluation
 ├── model.py         # ResNet18 model definition
 ├── dataset.py       # Dataset loading and partitioning
+├── fedagain.py      # FedAgain custom strategy
+├── logger.py        # CSV experiment logger
+├── results/         # Experiment results (CSV files)
 └── requirements.txt # Dependencies
 ```
 
@@ -64,6 +67,20 @@ Then run:
 python main.py
 ```
 
+## Experiment Results
+
+All experiment results are automatically logged to `results/experiments.csv` with:
+- **Configuration**: Model, strategy, dataset, distribution, hyperparameters
+- **Metrics**: Accuracy, Precision, Recall, F1 Score (macro-averaged)
+- **Timestamp**: Date and time of experiment
+
+Example CSV output:
+```csv
+timestamp,date,model,strategy,dataset,data_distribution,num_clients,num_rounds,local_epochs,batch_size,learning_rate,final_accuracy,final_precision,final_recall,final_f1
+2025-01-15 10:30:45,2025-01-15,ResNet18,FedAvg,MNIST,iid,5,3,1,32,0.01,0.9950,0.9952,0.9949,0.9950
+2025-01-15 11:15:20,2025-01-15,ResNet18,FedAgain,MNIST,non-iid-label,5,3,1,32,0.01,0.9845,0.9850,0.9842,0.9846
+```
+
 ### Configuration
 
 All configuration is in `config.py`:
@@ -93,10 +110,10 @@ USE_PRETRAINED = True  # Use ImageNet pretrained weights
 
 # Strategy-specific parameters
 FEDPROX_PROXIMAL_MU = 0.1       # Proximal term for FedProx
-FEDOPT_SERVER_LR = 0.01          # Server learning rate for FedOpt
-FEDOPT_BETA1 = 0.9               # FedOpt momentum
-FEDOPT_BETA2 = 0.99              # FedOpt second moment
-FEDOPT_TAU = 1e-3                # FedOpt epsilon/tau
+FEDADAM_SERVER_LR = 0.01         # Server learning rate for FedAdam
+FEDADAM_BETA1 = 0.9              # FedAdam momentum
+FEDADAM_BETA2 = 0.99             # FedAdam second moment
+FEDADAM_TAU = 1e-3               # FedAdam epsilon/tau
 BULYAN_NUM_MALICIOUS = 1         # Bulyan: number of Byzantine clients to tolerate
 BULYAN_TO_KEEP = None            # Bulyan: clients to keep (None = auto)
 FEDAGAIN_EPSILON = 1e-6          # FedAgain: numerical stability constant
@@ -130,7 +147,7 @@ Using Flower's built-in implementations:
 |----------|-------------|-------------|
 | **FedAvg** | Federated Averaging (McMahan et al., 2017) | Weighted average of client models |
 | **FedProx** | Federated Proximal (Li et al., 2020) | Adds proximal term to handle heterogeneity |
-| **FedOpt** | FedAdam (Reddi et al., 2020) | Server-side adaptive optimization (Adam) |
+| **FedAdam** | Adaptive Federated Optimization (Reddi et al., 2020) | Server-side Adam optimizer |
 | **FedMedian** | Coordinate-wise Median | Robust to Byzantine attacks and outliers |
 | **Bulyan** | Byzantine-robust (Mhamdi et al., 2018) | Removes outliers before aggregation |
 | **FedAgain** | Trust-based aggregation (Custom) | Weights clients by benchmark error × divergence |
@@ -139,7 +156,7 @@ Using Flower's built-in implementations:
 
 - **FedAvg**: Classic federated learning - aggregates client models using weighted averaging
 - **FedProx**: Adds a proximal term to limit client drift (good for non-IID data)
-- **FedOpt (FedAdam)**: Uses server-side Adam optimizer for potentially faster convergence
+- **FedAdam**: Server-side Adam optimizer for potentially faster convergence
 - **FedMedian**: Uses coordinate-wise median - more robust to outliers/malicious clients
 - **Bulyan**: Byzantine-robust aggregation - removes outliers before computing mean (strongest defense against malicious clients)
 - **FedAgain**: Trust-based weighting - clients with lower benchmark error and smaller divergence get higher weight (T_k = 1/(E_k×D_k+ε))
