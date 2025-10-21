@@ -44,7 +44,11 @@ class ExperimentLogger:
                 "final_accuracy",
                 "final_precision",
                 "final_recall",
-                "final_f1"
+                "final_f1",
+                "use_pretrained",
+                "corrupt_clients",
+                "corrupt_ratio",
+                "corruption_severity"
             ]
             
             with open(self.csv_path, 'w', newline='') as f:
@@ -78,14 +82,18 @@ class ExperimentLogger:
             metrics.get("accuracy", 0.0),
             metrics.get("precision", 0.0),
             metrics.get("recall", 0.0),
-            metrics.get("f1", 0.0)
+            metrics.get("f1", 0.0),
+            config_dict.get("use_pretrained", True),
+            config_dict.get("corrupt_clients", False),
+            config_dict.get("corrupt_ratio", 0.0),
+            config_dict.get("corruption_severity", 0)
         ]
         
         with open(self.csv_path, 'a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(row)
         
-        print(f"\n✓ Results saved to: {self.csv_path}")
+        print(f"\n[OK] Results saved to: {self.csv_path}")
 
 
 def compute_classification_metrics(y_true: np.ndarray, y_pred: np.ndarray, 

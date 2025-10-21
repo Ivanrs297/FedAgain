@@ -1,15 +1,17 @@
 """
-Federated learning using Flower framework with multiple strategies.
-Supports FedAvg, FedProx, FedOpt (FedAdam), and FedMedian.
+Federated learning with multiple aggregation strategies.
+Simple implementation without Ray/TensorFlow dependencies.
+Supports FedAvg, FedProx, FedAdam, FedMedian, Bulyan, and FedAgain.
 """
 
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
 import torch
-import flwr as fl
 from collections import OrderedDict
 from model import get_model
 from dataset import load_data
 from client import train, test
-from server import get_strategy
 from fedagain import FedAgainStrategy, compute_benchmark_error
 from logger import ExperimentLogger, compute_classification_metrics
 import config
@@ -23,18 +25,22 @@ test_loader = None
 dataset_info = None
 
 
-class FlowerClient(fl.client.NumPyClient):
-    """Flower client implementing local training and evaluation."""
+class FederatedClient:
+    """Simple federated client for local training and evaluation."""
     
     def __init__(self, cid: str, device: torch.device):
         self.cid = cid
         self.device = device
         
         # Create model
+        # Adapt for small images if input size < 64
+        adapt_small = dataset_info['input_size'] < 64
         self.model = get_model(
             num_classes=dataset_info['num_classes'],
             num_channels=dataset_info['num_channels'],
-            use_pretrained=config.USE_PRETRAINED
+            use_pretrained=config.USE_PRETRAINED,
+            model_name=config.MODEL_NAME,
+            adapt_for_small_images=adapt_small
         )
         self.model.to(self.device)
         
@@ -62,6 +68,13 @@ class FlowerClient(fl.client.NumPyClient):
             # Use validation set as benchmark
             benchmark_error = compute_benchmark_error(self.model, self.valloader, self.device)
         
+        # FedProx: Add proximal term
+        proximal_mu = 0.0
+        global_params = None
+        if config.STRATEGY == "FedProx":
+            proximal_mu = config.FEDPROX_PROXIMAL_MU
+            global_params = parameters  # Store global model parameters
+        
         # Train locally
         train_loss, train_acc = train(
             self.model,
@@ -69,7 +82,9 @@ class FlowerClient(fl.client.NumPyClient):
             epochs=config.LOCAL_EPOCHS,
             device=self.device,
             lr=config.LEARNING_RATE,
-            momentum=config.MOMENTUM
+            momentum=config.MOMENTUM,
+            proximal_mu=proximal_mu,
+            global_params=global_params
         )
         
         print(f"  Client {int(self.cid) + 1}: Loss={train_loss:.4f}, Accuracy={train_acc:.4f}, BenchErr={benchmark_error:.4f}")
@@ -87,10 +102,10 @@ class FlowerClient(fl.client.NumPyClient):
         return loss, len(self.valloader.dataset), {"accuracy": accuracy}
 
 
-def client_fn(cid: str) -> FlowerClient:
-    """Create a Flower client for the given client ID."""
+def client_fn(cid: str) -> FederatedClient:
+    """Create a federated client for the given client ID."""
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    return FlowerClient(cid, device)
+    return FederatedClient(cid, device)
 
 
 def evaluate_global_model(server_round: int, parameters, config_dict, 
@@ -99,15 +114,20 @@ def evaluate_global_model(server_round: int, parameters, config_dict,
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
     # Create model and set parameters
+    # Adapt for small images if input size < 64
+    adapt_small = dataset_info['input_size'] < 64
     model = get_model(
         num_classes=dataset_info['num_classes'],
         num_channels=dataset_info['num_channels'],
-        use_pretrained=config.USE_PRETRAINED
+        use_pretrained=config.USE_PRETRAINED,
+        model_name=config.MODEL_NAME,
+        adapt_for_small_images=adapt_small
     )
     model.to(device)
     
+    # Set parameters with proper dtype handling
     params_dict = zip(model.state_dict().keys(), parameters)
-    state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
+    state_dict = OrderedDict({k: torch.tensor(v, dtype=torch.float32).to(device) for k, v in params_dict})
     model.load_state_dict(state_dict, strict=True)
     
     # Evaluate
@@ -140,10 +160,14 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
     print("=" * 70)
-    print("Federated Learning with Flower Framework")
+    print("FEDERATED LEARNING EXPERIMENT")
     print("=" * 70)
     print(f"Dataset: {config.DATASET}")
+    print(f"Model: {config.MODEL_NAME.upper()}")
     print(f"Strategy: {config.STRATEGY}")
+    print(f"Num Clients: {config.NUM_CLIENTS}")
+    print(f"Num Rounds: {config.NUM_ROUNDS}")
+    print(f"Local Epochs: {config.LOCAL_EPOCHS}")
     print(f"Using device: {device}")
     if torch.cuda.is_available():
         print(f"CUDA Device: {torch.cuda.get_device_name(0)}")
@@ -168,38 +192,35 @@ if __name__ == "__main__":
     print(f"  - Training samples per client: ~{len(train_loaders[0].dataset)}")
     print(f"  - Total test samples: {len(test_loader.dataset)}")
     
-    print(f"\nModel: ResNet18 (Pretrained: {config.USE_PRETRAINED})")
-    print(f"Training Configuration:")
-    print(f"  - Strategy: {config.STRATEGY}")
-    print(f"  - Rounds: {config.NUM_ROUNDS}")
-    print(f"  - Local epochs: {config.LOCAL_EPOCHS}")
+    print(f"\nTraining Configuration:")
+    print(f"  - Pretrained: {config.USE_PRETRAINED}")
     print(f"  - Batch size: {config.BATCH_SIZE}")
     print(f"  - Learning rate: {config.LEARNING_RATE}")
     print(f"  - Momentum: {config.MOMENTUM}")
     
     # Strategy-specific parameters
     if config.STRATEGY == "FedProx":
-        print(f"  - FedProx μ: {config.FEDPROX_PROXIMAL_MU}")
-    elif config.STRATEGY == "FedAdam":
-        print(f"  - Server LR: {config.FEDADAM_SERVER_LR}")
-        print(f"  - β1: {config.FEDADAM_BETA1}, β2: {config.FEDADAM_BETA2}")
+        print(f"  - FedProx mu: {config.FEDPROX_PROXIMAL_MU}")
+    elif config.STRATEGY == "FedYogi":
+        print(f"  - Server LR: {config.FEDYOGI_SERVER_LR}")
+        print(f"  - Beta1: {config.FEDYOGI_BETA1}, Beta2: {config.FEDYOGI_BETA2}")
     elif config.STRATEGY == "Bulyan":
         print(f"  - Byzantine clients to tolerate: {config.BULYAN_NUM_MALICIOUS}")
     
     # Initialize strategy-specific components
-    fedadam_m = None
-    fedadam_v = None
-    fedadam_t = 0
+    fedyogi_m = None
+    fedyogi_v = None
+    fedyogi_t = 0
     fedagain_strategy = None
     
-    if config.STRATEGY == "FedAdam":
+    if config.STRATEGY == "FedYogi":
         # Will be initialized after first round
         pass
     elif config.STRATEGY == "FedAgain":
         # Initialize FedAgain strategy
         epsilon = config.FEDAGAIN_EPSILON if hasattr(config, 'FEDAGAIN_EPSILON') else 1e-6
         fedagain_strategy = FedAgainStrategy(epsilon=epsilon)
-        print(f"  - FedAgain ε: {epsilon}")
+        print(f"  - FedAgain epsilon: {epsilon}")
     
     print("\n" + "=" * 70)
     print(f"Starting Federated Learning with {config.STRATEGY}...")
@@ -274,18 +295,18 @@ if __name__ == "__main__":
                 aggregated.append(median_param)
             parameters = aggregated
             
-        elif config.STRATEGY == "FedAdam":
-            # FedAdam: Simplified - just use weighted average (like FedAvg)
-            # The actual FedAdam in Flower handles server-side optimization internally
-            # For our manual implementation, we just do weighted averaging
+        elif config.STRATEGY == "FedYogi":
+            # FedYogi: Full implementation with sign-based adaptive velocity update
+            # Using very conservative hyperparameters for deep network stability
             total_examples = sum([result[1] for result in results])
             num_params = len(results[0][0])
-            aggregated = []
             
+            # Weighted average of client updates
+            aggregated = []
             for i in range(num_params):
                 weighted_sum = None
                 for result in results:
-                    param = result[0][i]
+                    param = result[0][i].astype(np.float32)  # Ensure float32
                     num_examples = result[1]
                     weight = num_examples / total_examples
                     
@@ -296,12 +317,67 @@ if __name__ == "__main__":
                 
                 aggregated.append(weighted_sum)
             
-            # For simplicity, just use the aggregated result (acts like FedAvg)
-            # If you need true server-side Adam, use Flower's actual FedAdam strategy
-            parameters = aggregated
+            # Initialize momentum and velocity on first round
+            if fedyogi_m is None:
+                fedyogi_m = [np.zeros_like(p, dtype=np.float32) for p in parameters]
+                fedyogi_v = [np.zeros_like(p, dtype=np.float32) for p in parameters]
+            
+            # Convert parameters to float32 for computation
+            parameters_f32 = [p.astype(np.float32) for p in parameters]
+            
+            # Compute pseudo-gradient: Delta = w_avg - w_t (direction towards aggregated model)
+            pseudo_grads = [aggregated[i] - parameters_f32[i] for i in range(num_params)]
+            
+            # Update timestep
+            fedyogi_t += 1
+            
+            # FedYogi update with sign-based velocity
+            new_params = []
+            for i in range(num_params):
+                # Update biased first moment estimate (momentum) - same as Adam
+                fedyogi_m[i] = config.FEDYOGI_BETA1 * fedyogi_m[i] + (1 - config.FEDYOGI_BETA1) * pseudo_grads[i]
+                
+                # Update biased second moment estimate (velocity) - YOGI-STYLE
+                # Key innovation: v = v - (1-beta2)*Delta^2*sign(v-Delta^2)
+                # This prevents unbounded growth and provides self-correction
+                grad_squared = pseudo_grads[i] ** 2
+                fedyogi_v[i] = fedyogi_v[i] - (1 - config.FEDYOGI_BETA2) * grad_squared * np.sign(fedyogi_v[i] - grad_squared)
+                
+                # Bias correction
+                m_hat = fedyogi_m[i] / (1 - config.FEDYOGI_BETA1 ** fedyogi_t)
+                v_hat = fedyogi_v[i] / (1 - config.FEDYOGI_BETA2 ** fedyogi_t)
+                
+                # Update parameters with adaptive learning rate
+                # w_{t+1} = w_t + eta * m_hat / (sqrt(|v_hat|) + tau)
+                # Using |v_hat| because Yogi can make v negative
+                # Using very small eta (0.001) to prevent overshooting
+                denominator = np.sqrt(np.abs(v_hat)) + config.FEDYOGI_TAU
+                update_step = config.FEDYOGI_SERVER_LR * m_hat / denominator
+                
+                # Clip update to prevent extreme changes
+                # This is critical for deep networks
+                max_update = 0.1  # Don't change any parameter by more than 10% per round
+                update_norm = np.abs(update_step)
+                param_norm = np.abs(parameters_f32[i]) + 1e-8
+                scale = np.minimum(1.0, max_update * param_norm / (update_norm + 1e-8))
+                clipped_update = update_step * scale
+                
+                new_param = parameters_f32[i] + clipped_update
+                
+                # Final safety check for nan/inf
+                if np.any(np.isnan(new_param)) or np.any(np.isinf(new_param)):
+                    print(f"WARNING: NaN/Inf detected in parameter {i} after FedYogi update!")
+                    print(f"  Falling back to aggregated parameters")
+                    new_param = aggregated[i]
+                
+                # Convert back to original dtype
+                original_dtype = parameters[i].dtype
+                new_params.append(new_param.astype(original_dtype))
+            
+            parameters = new_params
             
         else:
-            # FedAvg, FedProx: weighted average
+            # FedAvg: weighted average (FedProx uses same aggregation, proximal term is in client training)
             total_examples = sum([result[1] for result in results])
             num_params = len(results[0][0])
             aggregated = []
@@ -354,7 +430,7 @@ if __name__ == "__main__":
     
     # Log experiment results
     experiment_config = {
-        "model": "ResNet18",
+        "model": config.MODEL_NAME.upper(),
         "strategy": config.STRATEGY,
         "dataset": config.DATASET,
         "data_distribution": config.DATA_DISTRIBUTION,
@@ -362,7 +438,11 @@ if __name__ == "__main__":
         "num_rounds": config.NUM_ROUNDS,
         "local_epochs": config.LOCAL_EPOCHS,
         "batch_size": config.BATCH_SIZE,
-        "learning_rate": config.LEARNING_RATE
+        "learning_rate": config.LEARNING_RATE,
+        "use_pretrained": config.USE_PRETRAINED,
+        "corrupt_clients": getattr(config, 'CORRUPT_CLIENTS', False),
+        "corrupt_ratio": getattr(config, 'CORRUPT_CLIENT_RATIO', 0.0),
+        "corruption_severity": getattr(config, 'CORRUPTION_SEVERITY', 0)
     }
     
     logger.log_experiment(experiment_config, final_metrics)

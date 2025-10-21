@@ -2,42 +2,25 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from collections import OrderedDict
-import flwr as fl
+import copy
 
 
-class FlowerClient(fl.client.NumPyClient):
-    def __init__(self, cid, net, trainloader, valloader):
-        self.cid = cid
-        self.net = net
-        self.trainloader = trainloader
-        self.valloader = valloader
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.net.to(self.device)
-
-    def get_parameters(self, config):
-        return [val.cpu().numpy() for _, val in self.net.state_dict().items()]
-
-    def set_parameters(self, parameters):
-        params_dict = zip(self.net.state_dict().keys(), parameters)
-        state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
-        self.net.load_state_dict(state_dict, strict=True)
-
-    def fit(self, parameters, config):
-        self.set_parameters(parameters)
-        train_loss, train_acc = train(self.net, self.trainloader, epochs=1, device=self.device)
-        return self.get_parameters(config={}), len(self.trainloader.dataset), {"train_loss": train_loss, "train_acc": train_acc}
-
-    def evaluate(self, parameters, config):
-        self.set_parameters(parameters)
-        loss, accuracy = test(self.net, self.valloader, device=self.device)
-        return loss, len(self.valloader.dataset), {"accuracy": accuracy}
-
-
-def train(net, trainloader, epochs, device, lr=0.01, momentum=0.9):
-    """Train the model on the training set."""
+def train(net, trainloader, epochs, device, lr=0.01, momentum=0.9, proximal_mu=0.0, global_params=None):
+    """Train the model on the training set.
+    
+    Args:
+        proximal_mu: FedProx proximal term coefficient (0 = no proximal term, i.e., FedAvg)
+        global_params: Global model parameters (needed for FedProx proximal term)
+    """
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=momentum)
     net.train()
+    
+    # Store global parameters for FedProx proximal term
+    if proximal_mu > 0 and global_params is not None:
+        global_params_dict = {}
+        for name, param in zip(net.state_dict().keys(), global_params):
+            global_params_dict[name] = torch.tensor(param, device=device)
     
     total_loss = 0.0
     correct = 0
@@ -49,6 +32,15 @@ def train(net, trainloader, epochs, device, lr=0.01, momentum=0.9):
             optimizer.zero_grad()
             outputs = net(images)
             loss = criterion(outputs, labels)
+            
+            # FedProx: Add proximal term ||w - w_global||^2
+            if proximal_mu > 0 and global_params is not None:
+                proximal_term = 0.0
+                for name, param in net.named_parameters():
+                    if name in global_params_dict:
+                        proximal_term += torch.sum((param - global_params_dict[name]) ** 2)
+                loss += (proximal_mu / 2) * proximal_term
+            
             loss.backward()
             optimizer.step()
             

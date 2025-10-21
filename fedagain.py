@@ -114,10 +114,16 @@ class FedAgainStrategy:
 
 def compute_benchmark_error(model, benchmark_loader, device):
     """
-    Compute benchmark error on a small validation/benchmark set.
+    Compute benchmark error (average loss) on validation set.
     
     This is the error E_k that each client computes on the incoming global model
-    before local training.
+    before local training. Uses cross-entropy loss instead of accuracy for
+    better sensitivity to corrupted clients.
+    
+    Higher loss indicates:
+    - Corrupted/poisoned data
+    - Poor model fit on client's data distribution
+    - Potential Byzantine behavior
     
     Args:
         model: PyTorch model
@@ -125,24 +131,27 @@ def compute_benchmark_error(model, benchmark_loader, device):
         device: Device to run on
     
     Returns:
-        Error rate (1 - accuracy) on benchmark set
+        Average cross-entropy loss (no normalization needed, trust weights
+        are normalized during aggregation)
     """
     import torch.nn as nn
     
+    criterion = nn.CrossEntropyLoss()
     model.eval()
-    correct = 0
-    total = 0
+    
+    total_loss = 0.0
+    total_samples = 0
     
     with torch.no_grad():
         for images, labels in benchmark_loader:
             images, labels = images.to(device), labels.to(device)
             outputs = model(images)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+            loss = criterion(outputs, labels)
+            
+            total_loss += loss.item() * labels.size(0)
+            total_samples += labels.size(0)
     
-    accuracy = correct / total if total > 0 else 0.0
-    error = 1.0 - accuracy
+    avg_loss = total_loss / total_samples if total_samples > 0 else 0.0
     
-    return error
+    return avg_loss
 

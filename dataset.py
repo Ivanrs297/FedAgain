@@ -1,7 +1,246 @@
 import torch
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, Dataset
 from torchvision import datasets, transforms
+from torchvision.datasets import ImageFolder
 from typing import Tuple, List, Dict
+import os
+import numpy as np
+from PIL import Image
+import warnings
+
+# Suppress deprecation warnings from imagecorruptions package
+warnings.filterwarnings('ignore', category=FutureWarning, module='imagecorruptions')
+warnings.filterwarnings('ignore', category=UserWarning, message='.*non-writable tensors.*')
+
+try:
+    from imagecorruptions import corrupt, get_corruption_names
+    IMAGECORRUPTIONS_AVAILABLE = True
+except ImportError:
+    IMAGECORRUPTIONS_AVAILABLE = False
+    print("[WARNING] imagecorruptions package not found. Install with: pip install imagecorruptions")
+
+
+class CorruptedDataset(Dataset):
+    """
+    Wrapper to apply random image corruptions to a dataset.
+    Simulates corrupted/poisoned clients in federated learning.
+    
+    Each image is corrupted with a random corruption type at specified severity.
+    Uses imagecorruptions package (pip install imagecorruptions).
+    """
+    
+    def __init__(self, base_dataset, severity=3, seed=42):
+        """
+        Args:
+            base_dataset: Original clean dataset
+            severity: Corruption severity (1-5, where 5 is most severe)
+            seed: Random seed for reproducibility
+        """
+        self.base_dataset = base_dataset
+        self.severity = severity
+        
+        if not IMAGECORRUPTIONS_AVAILABLE:
+            raise ImportError("imagecorruptions package required. Install with: pip install imagecorruptions")
+        
+        # Get available corruption types (19 corruptions)
+        self.corruption_names = get_corruption_names('all')
+        
+        # Randomly assign corruption types to images
+        np.random.seed(seed)
+        self.corruption_types = np.random.choice(
+            self.corruption_names,
+            size=len(base_dataset),
+            replace=True
+        )
+    
+    def __len__(self):
+        return len(self.base_dataset)
+    
+    def __getitem__(self, idx):
+        # Get original image and label
+        img, label = self.base_dataset[idx]
+        
+        # Convert tensor to numpy if needed
+        if isinstance(img, torch.Tensor):
+            # Tensor to numpy: (C, H, W) -> (H, W, C)
+            img_np = img.permute(1, 2, 0).numpy()
+            # Denormalize if needed (assume 0-1 range)
+            img_np = (img_np * 255).astype(np.uint8)
+            was_tensor = True
+        else:
+            # PIL Image to numpy
+            img_np = np.array(img)
+            was_tensor = False
+        
+        # Apply corruption
+        corruption_type = self.corruption_types[idx]
+        try:
+            corrupted_np = corrupt(img_np, corruption_name=corruption_type, severity=self.severity)
+        except TypeError as e:
+            # Handle scikit-image compatibility issue (multichannel -> channel_axis)
+            # If glass_blur or other corruptions fail, skip corruption for this image
+            print(f"[WARNING] Corruption '{corruption_type}' failed (scikit-image version issue), using clean image")
+            corrupted_np = img_np
+        
+        # Convert back to original format
+        if was_tensor:
+            # Numpy to tensor: (H, W, C) -> (C, H, W)
+            # Make a copy to ensure writable array
+            corrupted_np = np.array(corrupted_np, copy=True)
+            corrupted_tensor = torch.from_numpy(corrupted_np).permute(2, 0, 1).float() / 255.0
+            return corrupted_tensor, label
+        else:
+            # Numpy to PIL
+            corrupted_pil = Image.fromarray(corrupted_np)
+            return corrupted_pil, label
+
+
+class CIFAR10CDataset(Dataset):
+    """
+    CIFAR-10-C with Random Corruptions: Realistic robustness training and testing.
+    
+    Each image (both train and test) has a RANDOM corruption type applied.
+    This simulates real-world scenarios where:
+    - Training data is noisy/corrupted (realistic conditions)
+    - Test data is also corrupted but with different corruption instances
+    - Model must learn to be robust from corrupted training data
+    
+    Both sets use:
+    - All 19 corruption types randomly distributed
+    - Severity level 3 (medium)
+    - One corruption per image
+    """
+    
+    CORRUPTION_TYPES = [
+        'gaussian_noise', 'shot_noise', 'impulse_noise', 'speckle_noise',
+        'defocus_blur', 'glass_blur', 'motion_blur', 'zoom_blur', 'gaussian_blur',
+        'snow', 'frost', 'fog',
+        'brightness', 'contrast', 'elastic_transform', 'pixelate', 
+        'jpeg_compression', 'spatter', 'saturate'
+    ]
+    
+    def __init__(self, root, severity=3, transform=None, train=True, seed=42):
+        """
+        Args:
+            root: Path to CIFAR-10-C directory (should contain .npy files)
+            severity: Severity level (1-5, where 5 is most severe)
+            transform: Optional transform to apply
+            train: If True, load training set; if False, load test set
+            seed: Random seed for reproducibility (different seeds for train/test)
+        """
+        self.root = root
+        self.severity = severity
+        self.transform = transform
+        self.train = train
+        
+        # Use different seeds for train and test to ensure different corruption instances
+        self.seed = seed if train else seed + 1000
+        
+        # Determine which CIFAR-10 split to use
+        split_name = "train" if train else "test"
+        num_images = 50000 if train else 10000
+        
+        # Check if CIFAR-10-C exists
+        labels_file = os.path.join(root, "labels.npy")
+        if not os.path.exists(labels_file):
+            raise FileNotFoundError(
+                f"CIFAR-10-C not found at: {root}\n"
+                f"Please download from: "
+                f"https://zenodo.org/record/2535967/files/CIFAR-10-C.tar"
+            )
+        
+        # Load original CIFAR-10 labels for this split
+        cifar10 = datasets.CIFAR10(
+            root=os.path.dirname(root),
+            train=train,
+            download=True
+        )
+        self.targets = cifar10.targets if hasattr(cifar10, 'targets') else cifar10.labels
+        
+        # Randomly assign corruption types to images
+        np.random.seed(self.seed)
+        corruption_assignments = np.random.choice(
+            len(self.CORRUPTION_TYPES), 
+            size=num_images, 
+            replace=True
+        )
+        
+        # Load all corruption data (only test set available in CIFAR-10-C)
+        # For training, we'll use the test corruptions but with different indices
+        print(f"\nLoading CIFAR-10-C with random corruptions (severity {severity}, {split_name} set)...")
+        
+        corruption_data = {}
+        start_idx = (severity - 1) * 10000
+        end_idx = severity * 10000
+        
+        for i, corruption in enumerate(self.CORRUPTION_TYPES):
+            corruption_file = os.path.join(root, f"{corruption}.npy")
+            
+            if not os.path.exists(corruption_file):
+                print(f"  [WARNING] Missing {corruption}.npy, skipping...")
+                continue
+            
+            # Load this corruption's data at specified severity
+            data = np.load(corruption_file)
+            corruption_data[i] = data[start_idx:end_idx]
+            
+            if (i + 1) % 5 == 0:
+                print(f"  Loaded {i+1}/{len(self.CORRUPTION_TYPES)} corruption types...")
+        
+        # Build dataset: each image gets its assigned corruption
+        self.data = []
+        self.corruption_names = []
+        
+        if train:
+            # For training: tile the test corruptions to cover 50k images
+            # Each test corruption has 10k images, we need 50k
+            # We'll use tiling + random selection
+            for img_idx, corruption_idx in enumerate(corruption_assignments):
+                if corruption_idx in corruption_data:
+                    # Map training index to corruption data index (cycle through 10k)
+                    data_idx = img_idx % 10000
+                    self.data.append(corruption_data[corruption_idx][data_idx])
+                    self.corruption_names.append(self.CORRUPTION_TYPES[corruption_idx])
+                else:
+                    # Fallback
+                    fallback_idx = list(corruption_data.keys())[0]
+                    data_idx = img_idx % 10000
+                    self.data.append(corruption_data[fallback_idx][data_idx])
+                    self.corruption_names.append(self.CORRUPTION_TYPES[fallback_idx])
+        else:
+            # For testing: use the 10k test images directly
+            for img_idx, corruption_idx in enumerate(corruption_assignments):
+                if corruption_idx in corruption_data:
+                    self.data.append(corruption_data[corruption_idx][img_idx])
+                    self.corruption_names.append(self.CORRUPTION_TYPES[corruption_idx])
+                else:
+                    # Fallback
+                    fallback_idx = list(corruption_data.keys())[0]
+                    self.data.append(corruption_data[fallback_idx][img_idx])
+                    self.corruption_names.append(self.CORRUPTION_TYPES[fallback_idx])
+        
+        self.data = np.array(self.data)
+        
+        # Print corruption distribution
+        unique, counts = np.unique(self.corruption_names, return_counts=True)
+        print(f"\n  [OK] Created {split_name} set with {len(self.data)} images")
+        print(f"  Corruption distribution (random, severity {severity}):")
+        for corruption, count in sorted(zip(unique, counts)):
+            print(f"    {corruption:20s}: {count:5d} images ({count/len(self.data)*100:.1f}%)")
+    
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        img, target = self.data[idx], self.targets[idx]
+        
+        # Convert to PIL Image
+        img = Image.fromarray(img)
+        
+        if self.transform is not None:
+            img = self.transform(img)
+        
+        return img, target
 
 
 def get_dataset_info(dataset_name: str) -> Dict:
@@ -18,21 +257,88 @@ def get_dataset_info(dataset_name: str) -> Dict:
         "EMNIST": {
             "num_classes": 62,
             "num_channels": 1,
-            "input_size": 224,
+            "input_size": 28,  # Native size - no upscaling!
             "mean": [0.5],
             "std": [0.5]
         },
         "MNIST": {
             "num_classes": 10,
             "num_channels": 1,
-            "input_size": 224,
+            "input_size": 28,  # Native size - no upscaling!
             "mean": [0.5],
             "std": [0.5]
         },
         "CIFAR10": {
             "num_classes": 10,
             "num_channels": 3,
-            "input_size": 224,
+            "input_size": 32,  # Native size - no upscaling!
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225]
+        },
+        "CIFAR100": {
+            "num_classes": 100,
+            "num_channels": 3,
+            "input_size": 32,  # Native size - no upscaling!
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225]
+        },
+        "CIFAR10C": {
+            "num_classes": 10,
+            "num_channels": 3,
+            "input_size": 32,  # Native size - no upscaling!
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225],
+            "severity": 3  # Fixed at 3 for consistency
+        },
+        # Kidney Stone Datasets - Jonathan El-Beze
+        "JONATHAN_MIX": {
+            "num_classes": 6,  # 6 subtypes: Ia, IIa, IIIa, IVc, IVd, Va
+            "num_channels": 3,
+            "input_size": 256,
+            "mean": [0.485, 0.456, 0.406],  # ImageNet normalization
+            "std": [0.229, 0.224, 0.225]
+        },
+        "JONATHAN_SEC": {
+            "num_classes": 6,
+            "num_channels": 3,
+            "input_size": 256,
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225]
+        },
+        "JONATHAN_SUR": {
+            "num_classes": 6,
+            "num_channels": 3,
+            "input_size": 256,
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225]
+        },
+        # Kidney Stone Datasets - Michel Daudon
+        "DAUDON_MIX": {
+            "num_classes": 6,  # 6 subtypes: Ia, IVa, IVa2, IVc, IVd, Va
+            "num_channels": 3,
+            "input_size": 256,
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225]
+        },
+        "DAUDON_SEC": {
+            "num_classes": 6,
+            "num_channels": 3,
+            "input_size": 256,
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225]
+        },
+        "DAUDON_SUR": {
+            "num_classes": 6,
+            "num_channels": 3,
+            "input_size": 256,
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225]
+        },
+        # Kidney Stone Dataset - MyStone
+        "MYSTONE": {
+            "num_classes": 6,  # 6 subtypes
+            "num_channels": 3,
+            "input_size": 256,
             "mean": [0.485, 0.456, 0.406],
             "std": [0.229, 0.224, 0.225]
         }
@@ -108,10 +414,139 @@ def load_dataset(dataset_name: str, root: str = "./data"):
             transform=transform
         )
     
+    elif dataset_name == "CIFAR100":
+        train_dataset = datasets.CIFAR100(
+            root=root,
+            train=True,
+            download=True,
+            transform=transform
+        )
+        test_dataset = datasets.CIFAR100(
+            root=root,
+            train=False,
+            download=True,
+            transform=transform
+        )
+    
+    elif dataset_name == "CIFAR10C":
+        # CIFAR-10-C: BOTH training and testing use randomly corrupted images
+        # Each image gets ONE random corruption type at severity 3
+        # Training: 50k images with random corruptions
+        # Testing: 10k images with random corruptions (different instances)
+        import config
+        severity = getattr(config, "CIFAR10C_SEVERITY", 3)
+        
+        cifar10c_root = os.path.join(root, "CIFAR-10-C")
+        
+        train_dataset = CIFAR10CDataset(
+            root=cifar10c_root,
+            severity=severity,
+            transform=transform,
+            train=True
+        )
+        test_dataset = CIFAR10CDataset(
+            root=cifar10c_root,
+            severity=severity,
+            transform=transform,
+            train=False
+        )
+    
+    # Jonathan El-Beze datasets
+    elif dataset_name == "JONATHAN_MIX":
+        train_dir = os.path.join(root, "Jonathan El-Beze (w256 1k v1)", "MIX", "train")
+        test_dir = os.path.join(root, "Jonathan El-Beze (w256 1k v1)", "MIX", "test")
+        train_dataset = ImageFolder(train_dir, transform=transform)
+        test_dataset = ImageFolder(test_dir, transform=transform)
+    
+    elif dataset_name == "JONATHAN_SEC":
+        train_dir = os.path.join(root, "Jonathan El-Beze (w256 1k v1)", "SEC", "train")
+        test_dir = os.path.join(root, "Jonathan El-Beze (w256 1k v1)", "SEC", "test")
+        train_dataset = ImageFolder(train_dir, transform=transform)
+        test_dataset = ImageFolder(test_dir, transform=transform)
+    
+    elif dataset_name == "JONATHAN_SUR":
+        train_dir = os.path.join(root, "Jonathan El-Beze (w256 1k v1)", "SUR", "train")
+        test_dir = os.path.join(root, "Jonathan El-Beze (w256 1k v1)", "SUR", "test")
+        train_dataset = ImageFolder(train_dir, transform=transform)
+        test_dataset = ImageFolder(test_dir, transform=transform)
+    
+    # Michel Daudon datasets
+    elif dataset_name == "DAUDON_MIX":
+        train_dir = os.path.join(root, "Michel Daudon (w256 1k v1)", "MIX", "train")
+        test_dir = os.path.join(root, "Michel Daudon (w256 1k v1)", "MIX", "test")
+        train_dataset = ImageFolder(train_dir, transform=transform)
+        test_dataset = ImageFolder(test_dir, transform=transform)
+    
+    elif dataset_name == "DAUDON_SEC":
+        train_dir = os.path.join(root, "Michel Daudon (w256 1k v1)", "SEC", "train")
+        test_dir = os.path.join(root, "Michel Daudon (w256 1k v1)", "SEC", "test")
+        train_dataset = ImageFolder(train_dir, transform=transform)
+        test_dataset = ImageFolder(test_dir, transform=transform)
+    
+    elif dataset_name == "DAUDON_SUR":
+        train_dir = os.path.join(root, "Michel Daudon (w256 1k v1)", "SUR", "train")
+        test_dir = os.path.join(root, "Michel Daudon (w256 1k v1)", "SUR", "test")
+        train_dataset = ImageFolder(train_dir, transform=transform)
+        test_dataset = ImageFolder(test_dir, transform=transform)
+    
+    # MyStone dataset
+    elif dataset_name == "MYSTONE":
+        train_dir = os.path.join(root, "MyStone (w256, 1k)", "train")
+        test_dir = os.path.join(root, "MyStone (w256, 1k)", "test")
+        train_dataset = ImageFolder(train_dir, transform=transform)
+        test_dataset = ImageFolder(test_dir, transform=transform)
+    
     else:
         raise ValueError(f"Dataset {dataset_name} not supported.")
     
     return train_dataset, test_dataset, dataset_info
+
+
+def apply_corruptions_to_clients(client_datasets, corrupt_ratio=0.3, severity=3):
+    """
+    Apply corruptions to a subset of clients (simulating corrupted/poisoned clients).
+    
+    Args:
+        client_datasets: List of client datasets
+        corrupt_ratio: Ratio of clients to corrupt (e.g., 0.3 = 30%)
+        severity: Corruption severity (1-5)
+    
+    Returns:
+        List of datasets (some corrupted, some clean)
+        List of corrupted client indices
+    """
+    import numpy as np
+    
+    num_clients = len(client_datasets)
+    num_corrupt = int(num_clients * corrupt_ratio)
+    
+    # Randomly select clients to corrupt
+    np.random.seed(42)
+    corrupted_indices = np.random.choice(num_clients, num_corrupt, replace=False)
+    
+    print(f"\n[Corrupted Clients Simulation]")
+    print(f"  Total clients: {num_clients}")
+    print(f"  Corrupted clients: {num_corrupt} ({corrupt_ratio*100:.0f}%)")
+    print(f"  Corrupted client IDs: {sorted(corrupted_indices.tolist())}")
+    print(f"  Corruption severity: {severity}")
+    print(f"  Benign clients: {num_clients - num_corrupt} ({(1-corrupt_ratio)*100:.0f}%)")
+    
+    # Apply corruptions to selected clients
+    result_datasets = []
+    for i, dataset in enumerate(client_datasets):
+        if i in corrupted_indices:
+            # Wrap dataset with corruption
+            corrupted_dataset = CorruptedDataset(
+                dataset, 
+                severity=severity,
+                seed=42 + i  # Different seed per client
+            )
+            result_datasets.append(corrupted_dataset)
+        else:
+            # Keep clean
+            result_datasets.append(dataset)
+    
+    return result_datasets, corrupted_indices.tolist()
 
 
 def partition_data_iid(dataset, num_clients: int):
@@ -267,10 +702,22 @@ def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: i
         print(f"  - Distribution: Non-IID (label skew, {classes_per_client} classes per client)")
         client_datasets = partition_data_non_iid_label(train_dataset, num_clients, classes_per_client)
     elif distribution == "non-iid-dirichlet":
-        print(f"  - Distribution: Non-IID (Dirichlet α={dirichlet_alpha})")
+        print(f"  - Distribution: Non-IID (Dirichlet alpha={dirichlet_alpha})")
         client_datasets = partition_data_non_iid_dirichlet(train_dataset, num_clients, dirichlet_alpha)
     else:
         raise ValueError(f"Unknown distribution: {distribution}")
+    
+    # Apply corruptions to selected clients (if enabled)
+    import config as cfg
+    corrupted_client_ids = []
+    if getattr(cfg, 'CORRUPT_CLIENTS', False):
+        corrupt_ratio = getattr(cfg, 'CORRUPT_CLIENT_RATIO', 0.3)
+        corruption_severity = getattr(cfg, 'CORRUPTION_SEVERITY', 3)
+        client_datasets, corrupted_client_ids = apply_corruptions_to_clients(
+            client_datasets,
+            corrupt_ratio=corrupt_ratio,
+            severity=corruption_severity
+        )
     
     # Create train and validation loaders for each client
     train_loaders = []

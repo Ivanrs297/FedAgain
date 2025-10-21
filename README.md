@@ -4,26 +4,26 @@ A simple and extensible federated learning project using PyTorch with CUDA suppo
 
 ## Features
 
-- **Framework**: PyTorch + Flower (simple, no TensorFlow)
+- **Framework**: Pure PyTorch (no Flower/Ray/TensorFlow dependencies)
 - **Deep Learning**: PyTorch with CUDA support
 - **Model**: ResNet18 with ImageNet pretrained weights
 - **Datasets**: EMNIST, MNIST, CIFAR10 (easily extensible)
-- **Strategies**: FedAvg, FedProx, FedOpt (FedAdam), FedMedian
-- **Simple**: Single main file, strategies in server.py
+- **Strategies**: FedAvg, FedProx, FedAdam, FedMedian, Bulyan, FedAgain (custom)
+- **Simple**: Clean manual implementation, easy to understand and modify
 
 ## Project Structure
 
 ```
-├── main.py          # Main federated learning with Flower
-├── config.py        # Configuration (dataset, strategy, hyperparameters)
-├── server.py        # Strategies (FedAvg, FedProx, FedOpt, FedMedian, Bulyan)
-├── client.py        # Client training and evaluation
-├── model.py         # ResNet18 model definition
-├── dataset.py       # Dataset loading and partitioning
-├── fedagain.py      # FedAgain custom strategy
-├── logger.py        # CSV experiment logger
-├── results/         # Experiment results (CSV files)
-└── requirements.txt # Dependencies
+├── main.py             # Main federated learning loop (all strategies)
+├── run_experiments.py  # Batch experiment runner
+├── config.py           # Configuration (dataset, strategy, hyperparameters)
+├── client.py           # Client training and evaluation functions
+├── model.py            # ResNet18 model definition
+├── dataset.py          # Dataset loading and partitioning
+├── fedagain.py         # FedAgain custom strategy
+├── logger.py           # CSV experiment logger
+├── results/            # Experiment results (CSV files)
+└── requirements.txt    # Dependencies
 ```
 
 ## Installation
@@ -59,12 +59,32 @@ DATASET = "CIFAR10"  # Options: "EMNIST", "MNIST", "CIFAR10"
 
 Edit `config.py`:
 ```python
-STRATEGY = "FedProx"  # Options: "FedAvg", "FedProx", "FedOpt", "FedMedian"
+STRATEGY = "FedProx"  # Options: "FedAvg", "FedProx", "FedAdam", "FedMedian", "Bulyan", "FedAgain"
 ```
 
 Then run:
 ```bash
 python main.py
+```
+
+### Running Multiple Experiments
+
+Test all strategies automatically:
+```bash
+# Test all 6 strategies with current dataset
+python run_experiments.py
+
+# Test specific strategies
+python run_experiments.py --strategies FedAvg FedProx FedAgain
+
+# Test all strategies on MNIST
+python run_experiments.py --dataset MNIST
+
+# Quick mode: test 3 main strategies
+python run_experiments.py --quick
+
+# Combine options
+python run_experiments.py --dataset CIFAR10 --strategies FedAvg FedAgain
 ```
 
 ## Experiment Results
@@ -141,25 +161,26 @@ Realistic federated scenarios with non-IID data:
 
 ## Supported Strategies
 
-Using Flower's built-in implementations:
+Manual implementations (no external framework dependencies):
 
 | Strategy | Description | Key Feature |
 |----------|-------------|-------------|
 | **FedAvg** | Federated Averaging (McMahan et al., 2017) | Weighted average of client models |
 | **FedProx** | Federated Proximal (Li et al., 2020) | Adds proximal term to handle heterogeneity |
-| **FedAdam** | Adaptive Federated Optimization (Reddi et al., 2020) | Server-side Adam optimizer |
 | **FedMedian** | Coordinate-wise Median | Robust to Byzantine attacks and outliers |
 | **Bulyan** | Byzantine-robust (Mhamdi et al., 2018) | Removes outliers before aggregation |
 | **FedAgain** | Trust-based aggregation (Custom) | Weights clients by benchmark error × divergence |
 
 ### Strategy Details
 
-- **FedAvg**: Classic federated learning - aggregates client models using weighted averaging
-- **FedProx**: Adds a proximal term to limit client drift (good for non-IID data)
-- **FedAdam**: Server-side Adam optimizer for potentially faster convergence
-- **FedMedian**: Uses coordinate-wise median - more robust to outliers/malicious clients
-- **Bulyan**: Byzantine-robust aggregation - removes outliers before computing mean (strongest defense against malicious clients)
-- **FedAgain**: Trust-based weighting - clients with lower benchmark error and smaller divergence get higher weight (T_k = 1/(E_k×D_k+ε))
+All strategies are **fully implemented** manually (no Flower/Ray dependencies):
+
+- **FedAvg**: Classic federated learning - weighted averaging of client models based on dataset sizes
+- **FedProx**: Adds proximal term `(μ/2)||w - w_global||²` to client loss function to handle data heterogeneity - aggregation is weighted averaging
+- **FedYogi**: Full server-side Yogi optimization with sign-based velocity update `v = v - (1-β₂)Δ²sign(v-Δ²)` - uses very conservative learning rate (0.001) and gradient clipping for deep network stability
+- **FedMedian**: Coordinate-wise median aggregation - robust to outliers and malicious clients
+- **Bulyan**: Byzantine-robust - removes `f` furthest outliers from median, then averages remaining clients
+- **FedAgain**: Trust-based weighting - clients weighted by `T_k = 1/(E_k×D_k+ε)` where `E_k` is benchmark error and `D_k` is parameter divergence
 
 ## Adding New Datasets
 
@@ -188,11 +209,42 @@ elif dataset_name == "YOUR_DATASET":
 DATASET = "YOUR_DATASET"
 ```
 
-## Notes
+## Implementation Notes
 
-- The ResNet18 model automatically adapts to the number of channels (grayscale or RGB)
-- The final layer is adapted for the dataset's number of classes
-- Data is randomly partitioned across clients using a fixed seed for reproducibility
-- Each client uses 90% of its data for training and 10% for validation
-- No Ray or TensorFlow dependencies - pure PyTorch!
+- **Pure PyTorch**: No Flower, Ray, or TensorFlow dependencies
+- **Manual Aggregation**: All strategies implemented from scratch for transparency
+- **Automatic Adaptation**: ResNet18 adapts to grayscale/RGB and number of classes
+- **Non-IID Support**: Realistic data distributions (label skew, Dirichlet)
+- **Reproducible**: Fixed seeds for data partitioning
+- **Validation Split**: Each client uses 90% train / 10% validation
+- **CUDA Support**: Automatic GPU usage if available
+
+## Troubleshooting
+
+### FedAdam shows `nan` or exploding loss
+
+**Symptoms**: Loss increases (e.g., 1.2 → 9.1 → 26.2), test loss shows `nan`
+
+**Solutions**:
+1. Reduce `FEDADAM_SERVER_LR` (try 0.01 or 0.001)
+2. Increase `FEDADAM_TAU` (try 1e-3 instead of 1e-9)
+3. Reduce `FEDADAM_BETA2` (try 0.99 instead of 0.999)
+4. Check that pseudo-gradient direction is correct: `Δ = w_avg - w_t` (not `w_t - w_avg`)
+
+See `FEDADAM_FIX.md` for detailed explanation.
+
+### Low accuracy with non-IID data
+
+**Solutions**:
+1. Increase `NUM_ROUNDS` (try 10-20 instead of 3)
+2. Increase `NON_IID_CLASSES_PER_CLIENT` (try 3-4 instead of 2)
+3. Use `DATA_DISTRIBUTION = "iid"` to verify the model works
+4. For non-IID, try **FedProx** with higher `FEDPROX_PROXIMAL_MU` (0.1-0.5)
+
+### Out of memory errors
+
+**Solutions**:
+1. Reduce `BATCH_SIZE` (try 16 or 8 instead of 32)
+2. Reduce `NUM_CLIENTS` (try 3 instead of 5)
+3. Use `USE_PRETRAINED = False` to train from scratch (smaller initial model)
 

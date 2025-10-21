@@ -4,25 +4,34 @@ Modify these settings to change dataset, model, and training parameters.
 """
 
 # Dataset Configuration
-DATASET = "MNIST"  # Options: "EMNIST", "MNIST", "CIFAR10"
+# Options: "MNIST", "EMNIST", "CIFAR10", "CIFAR100"
+# Kidney Stones: "JONATHAN_MIX", "JONATHAN_SEC", "JONATHAN_SUR", "DAUDON_MIX", "DAUDON_SEC", "DAUDON_SUR", "MYSTONE"
+DATASET = "JONATHAN_MIX"
 
 # Federated Learning Configuration
-STRATEGY = "Bulyan"  # Options: "FedAvg", "FedProx", "FedAdam", "FedMedian", "Bulyan", "FedAgain"
-NUM_CLIENTS = 5
-NUM_ROUNDS = 3
+STRATEGY = "FedAgain"
+NUM_CLIENTS = 10
+NUM_ROUNDS = 10
 LOCAL_EPOCHS = 1
 
 # Data Distribution Configuration
-DATA_DISTRIBUTION = "non-iid-label"  # Options: "iid", "non-iid-label", "non-iid-dirichlet"
+DATA_DISTRIBUTION = "non-iid-dirichlet"
 NON_IID_CLASSES_PER_CLIENT = 2  # For non-iid-label: how many PRIMARY classes each client specializes in (they still get small samples of other classes)
 DIRICHLET_ALPHA = 0.5  # For non-iid-dirichlet: concentration parameter (lower = more non-IID)
 
+# Corrupted Clients Configuration (Simulate realistic data quality issues)
+CORRUPT_CLIENTS = True
+CORRUPT_CLIENT_RATIO = 0.3
+CORRUPTION_SEVERITY = 3
+# Note: Corruptions are applied only to corrupted clients during training
+#       Global model is tested on clean (benign) images
+
 # Strategy-specific parameters
 FEDPROX_PROXIMAL_MU = 0.1  # Proximal term coefficient for FedProx
-FEDADAM_SERVER_LR = 1.0  # Server learning rate for FedAdam (1.0 = full update)
-FEDADAM_BETA1 = 0.9  # FedAdam momentum parameter
-FEDADAM_BETA2 = 0.999  # FedAdam second moment parameter (higher = more stable)
-FEDADAM_TAU = 1e-8  # FedAdam adaptive learning rate parameter
+FEDYOGI_SERVER_LR = 0.001  # Server learning rate for FedYogi (very small for stability with deep networks)
+FEDYOGI_BETA1 = 0.9  # FedYogi momentum parameter (first moment decay)
+FEDYOGI_BETA2 = 0.99  # FedYogi second moment parameter (velocity decay)
+FEDYOGI_TAU = 1e-2  # FedYogi numerical stability constant (larger for deep networks)
 BULYAN_NUM_MALICIOUS = 1  # Bulyan: number of Byzantine/malicious clients to tolerate
 BULYAN_TO_KEEP = None  # Bulyan: number of clients to keep (None = auto)
 FEDAGAIN_EPSILON = 1e-6  # FedAgain: small constant for numerical stability in trust weight
@@ -33,7 +42,8 @@ LEARNING_RATE = 0.01
 MOMENTUM = 0.9
 
 # Model Configuration
-USE_PRETRAINED = True
+MODEL_NAME = "resnet18"
+USE_PRETRAINED = True  # For small images (28x28, 32x32), train from scratch is better
 
 # Device Configuration (auto-detected, but can be overridden)
 # DEVICE = "cuda"  # Options: "cuda", "cpu", or leave commented for auto-detection
