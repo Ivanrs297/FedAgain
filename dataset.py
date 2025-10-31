@@ -66,32 +66,82 @@ class CorruptedDataset(Dataset):
             img_np = img.permute(1, 2, 0).numpy()
             # Denormalize if needed (assume 0-1 range)
             img_np = (img_np * 255).astype(np.uint8)
+            # Squeeze single channel dimension for grayscale: (H, W, 1) -> (H, W)
+            if img_np.shape[2] == 1:
+                img_np = img_np.squeeze(2)
             was_tensor = True
         else:
             # PIL Image to numpy
             img_np = np.array(img)
             was_tensor = False
         
+        # Check image size and resize if needed (imagecorruptions requires 32x32 minimum)
+        original_size = img_np.shape[:2]  # (H, W)
+        is_grayscale = len(img_np.shape) == 2
+        needs_resize = original_size[0] < 32 or original_size[1] < 32
+        
+        if needs_resize:
+            # Resize to 32x32 for corruption
+            from PIL import Image as PILImage
+            if is_grayscale:  # Grayscale
+                img_pil = PILImage.fromarray(img_np, mode='L')
+            else:  # RGB
+                img_pil = PILImage.fromarray(img_np)
+            img_pil_resized = img_pil.resize((32, 32), PILImage.BILINEAR)
+            img_np_resized = np.array(img_pil_resized)
+        else:
+            img_np_resized = img_np
+        
         # Apply corruption
+        # Note: imagecorruptions expects RGB (3-channel) images
+        # Convert grayscale to RGB temporarily if needed
+        if is_grayscale and len(img_np_resized.shape) == 2:
+            # Convert grayscale to RGB by repeating channels
+            img_np_resized_rgb = np.stack([img_np_resized] * 3, axis=2)
+        else:
+            img_np_resized_rgb = img_np_resized
+        
         corruption_type = self.corruption_types[idx]
         try:
-            corrupted_np = corrupt(img_np, corruption_name=corruption_type, severity=self.severity)
-        except TypeError as e:
-            # Handle scikit-image compatibility issue (multichannel -> channel_axis)
-            # If glass_blur or other corruptions fail, skip corruption for this image
-            print(f"[WARNING] Corruption '{corruption_type}' failed (scikit-image version issue), using clean image")
-            corrupted_np = img_np
+            corrupted_np_rgb = corrupt(img_np_resized_rgb, corruption_name=corruption_type, severity=self.severity)
+            # Convert back to grayscale if original was grayscale
+            if is_grayscale:
+                # Use weighted average (standard RGB to grayscale conversion)
+                corrupted_np = np.dot(corrupted_np_rgb[...,:3], [0.299, 0.587, 0.114]).astype(np.uint8)
+            else:
+                corrupted_np = corrupted_np_rgb
+        except (TypeError, AttributeError) as e:
+            # Handle scikit-image compatibility issue or size issues
+            # If corruption fails, skip corruption for this image
+            print(f"[WARNING] Corruption '{corruption_type}' failed: {e}, using clean image")
+            corrupted_np = img_np_resized
+        
+        # Resize back to original size if needed
+        if needs_resize:
+            from PIL import Image as PILImage
+            if len(corrupted_np.shape) == 2:  # Grayscale
+                corrupted_pil = PILImage.fromarray(corrupted_np, mode='L')
+            else:  # RGB
+                corrupted_pil = PILImage.fromarray(corrupted_np)
+            corrupted_pil_resized = corrupted_pil.resize(original_size[::-1], PILImage.BILINEAR)  # (W, H)
+            corrupted_np = np.array(corrupted_pil_resized)
         
         # Convert back to original format
         if was_tensor:
             # Numpy to tensor: (H, W, C) -> (C, H, W)
             # Make a copy to ensure writable array
             corrupted_np = np.array(corrupted_np, copy=True)
+            # Handle grayscale images (add channel dimension if needed)
+            if len(corrupted_np.shape) == 2:
+                corrupted_np = corrupted_np[:, :, np.newaxis]
             corrupted_tensor = torch.from_numpy(corrupted_np).permute(2, 0, 1).float() / 255.0
             return corrupted_tensor, label
         else:
             # Numpy to PIL
-            corrupted_pil = Image.fromarray(corrupted_np)
+            if len(corrupted_np.shape) == 2:  # Grayscale
+                corrupted_pil = Image.fromarray(corrupted_np, mode='L')
+            else:  # RGB
+                corrupted_pil = Image.fromarray(corrupted_np)
             return corrupted_pil, label
 
 

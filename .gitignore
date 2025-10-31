@@ -15,7 +15,7 @@ ENV/
 
 # Data and results
 data/
-results/*
+# results/*
 
 # IDE
 .vscode/

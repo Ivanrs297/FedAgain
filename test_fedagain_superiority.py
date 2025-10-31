@@ -463,20 +463,20 @@ def run_all_tests_for_dataset(dataset_name, dataset_display_name):
     
     # We'll modify each test's dataset on the fly
     # Test 1
-    print(f"\n[{dataset_display_name}] Running Test 1: Baseline (Clean Data)")
+    # print(f"\n[{dataset_display_name}] Running Test 1: Baseline (Clean Data)")
     strategies = ["FedAvg", "FedProx", "FedMedian", "Bulyan", "FedAgain"]
-    base_config = {
-        "DATASET": dataset_name,
-        "NUM_CLIENTS": 10,
-        "NUM_ROUNDS": 10,
-        "LOCAL_EPOCHS": 1,
-        "DATA_DISTRIBUTION": "iid",
-        "CORRUPT_CLIENTS": False
-    }
-    for strategy in strategies:
-        config = base_config.copy()
-        config["STRATEGY"] = strategy
-        run_experiment(f"{dataset_name}-Test1-Clean-{strategy}", config)
+    # base_config = {
+    #     "DATASET": dataset_name,
+    #     "NUM_CLIENTS": 10,
+    #     "NUM_ROUNDS": 10,
+    #     "LOCAL_EPOCHS": 1,
+    #     "DATA_DISTRIBUTION": "iid",
+    #     "CORRUPT_CLIENTS": False
+    # }
+    # for strategy in strategies:
+    #     config = base_config.copy()
+    #     config["STRATEGY"] = strategy
+    #     run_experiment(f"{dataset_name}-Test1-Clean-{strategy}", config)
     
     # Test 2
     print(f"\n[{dataset_display_name}] Running Test 2: Light Corruption (10%)")
@@ -605,6 +605,7 @@ def main():
     print("  7. Scaling Clients")
     print("\nDatasets:")
     print("  - CIFAR10")
+    print("  - MNIST")
     print("  - Jonathan El-Beze: MIX, SEC, SUR")
     print("  - Michel Daudon: MIX, SEC, SUR")
     print("  - MyStone")
@@ -622,8 +623,9 @@ def main():
     # Define all datasets to test
     datasets = [
         ("CIFAR10", "CIFAR10"),
-        ("JONATHAN_MIX", "Jonathan El-Beze (MIX)"),
-        ("JONATHAN_SEC", "Jonathan El-Beze (SEC)"),
+        ("MNIST", "MNIST"),
+        # ("JONATHAN_MIX", "Jonathan El-Beze (MIX)"),
+        # ("JONATHAN_SEC", "Jonathan El-Beze (SEC)"),
         ("JONATHAN_SUR", "Jonathan El-Beze (SUR)"),
         ("DAUDON_MIX", "Michel Daudon (MIX)"),
         ("DAUDON_SEC", "Michel Daudon (SEC)"),
@@ -636,7 +638,7 @@ def main():
         run_all_tests_for_dataset(dataset_name, dataset_display)
     
     # Analyze results
-    analyze_results()
+    # analyze_results()
     
     print("\n" + "="*80)
     print("TEST SUITE COMPLETE!")
@@ -671,6 +673,8 @@ if __name__ == "__main__":
         # Dataset-specific test suites
         elif arg == "--cifar10":
             run_all_tests_for_dataset("CIFAR10", "CIFAR10")
+        elif arg == "--mnist":
+            run_all_tests_for_dataset("MNIST", "MNIST")
         elif arg == "--jonathan-mix":
             run_all_tests_for_dataset("JONATHAN_MIX", "Jonathan El-Beze (MIX)")
         elif arg == "--jonathan-sec":
@@ -690,17 +694,17 @@ if __name__ == "__main__":
         elif arg == "--all-kidney":
             print("Running all kidney stone datasets...")
             kidney_datasets = [
-                ("JONATHAN_MIX", "Jonathan El-Beze (MIX)"),
+                # ("JONATHAN_MIX", "Jonathan El-Beze (MIX)"),
                 ("JONATHAN_SEC", "Jonathan El-Beze (SEC)"),
-                ("JONATHAN_SUR", "Jonathan El-Beze (SUR)"),
-                ("DAUDON_MIX", "Michel Daudon (MIX)"),
-                ("DAUDON_SEC", "Michel Daudon (SEC)"),
-                ("DAUDON_SUR", "Michel Daudon (SUR)"),
-                ("MYSTONE", "MyStone")
+                # ("JONATHAN_SUR", "Jonathan El-Beze (SUR)"),
+                # ("DAUDON_MIX", "Michel Daudon (MIX)"),
+                # ("DAUDON_SEC", "Michel Daudon (SEC)"),
+                # ("DAUDON_SUR", "Michel Daudon (SUR)"),
+                # ("MYSTONE", "MyStone")
             ]
             for dataset_name, dataset_display in kidney_datasets:
                 run_all_tests_for_dataset(dataset_name, dataset_display)
-            analyze_results()
+            # analyze_results()
         
         # Analysis
         elif arg == "--analyze":
@@ -712,7 +716,7 @@ if __name__ == "__main__":
             print("  Individual tests (CIFAR10):")
             print("    --test1, --test2, --test3, --test4, --test5, --test6, --test7")
             print("\n  Dataset-specific:")
-            print("    --cifar10, --jonathan-mix, --jonathan-sec, --jonathan-sur")
+            print("    --cifar10, --mnist, --jonathan-mix, --jonathan-sec, --jonathan-sur")
             print("    --daudon-mix, --daudon-sec, --daudon-sur, --mystone")
             print("\n  Groups:")
             print("    --all-kidney    # All kidney stone datasets")

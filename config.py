@@ -6,16 +6,16 @@ Modify these settings to change dataset, model, and training parameters.
 # Dataset Configuration
 # Options: "MNIST", "EMNIST", "CIFAR10", "CIFAR100"
 # Kidney Stones: "JONATHAN_MIX", "JONATHAN_SEC", "JONATHAN_SUR", "DAUDON_MIX", "DAUDON_SEC", "DAUDON_SUR", "MYSTONE"
-DATASET = "JONATHAN_MIX"
+DATASET = "MNIST"
 
 # Federated Learning Configuration
 STRATEGY = "FedAgain"
-NUM_CLIENTS = 10
+NUM_CLIENTS = 20
 NUM_ROUNDS = 10
 LOCAL_EPOCHS = 1
 
 # Data Distribution Configuration
-DATA_DISTRIBUTION = "non-iid-dirichlet"
+DATA_DISTRIBUTION = "non-iid-label"
 NON_IID_CLASSES_PER_CLIENT = 2  # For non-iid-label: how many PRIMARY classes each client specializes in (they still get small samples of other classes)
 DIRICHLET_ALPHA = 0.5  # For non-iid-dirichlet: concentration parameter (lower = more non-IID)
 

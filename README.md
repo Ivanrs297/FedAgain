@@ -248,3 +248,84 @@ See `FEDADAM_FIX.md` for detailed explanation.
 2. Reduce `NUM_CLIENTS` (try 3 instead of 5)
 3. Use `USE_PRETRAINED = False` to train from scratch (smaller initial model)
 
+---
+
+## 📊 Analysis Tools
+
+This project includes powerful analysis tools for organizing and analyzing experimental results by dataset.
+
+### Quick Start
+
+```bash
+# 1. Run experiments on a dataset
+python test_fedagain_superiority.py --mystone
+
+# 2. Analyze and organize results by dataset
+python analyze_by_dataset.py
+
+# 3. Compare performance across multiple datasets
+python compare_datasets.py
+
+# 4. FedAgain-focused cross-dataset analysis
+python analyze_fedagain_cross_dataset.py
+
+# 5. Check current status
+python show_summary.py
+```
+
+### Features
+
+- **Automatic Dataset Detection** - Detects all datasets in experiments.csv
+- **Organized Structure** - Each dataset gets its own folder with analysis
+- **5 Visualization Plots** - Publication-ready figures per dataset
+- **Comprehensive Reports** - Detailed ANALYSIS_SUMMARY.md for each dataset
+- **Cross-Dataset Comparison** - Compare FedAgain across datasets
+- **Paper-Ready Outputs** - LaTeX-compatible figures and tables
+
+### Output Structure
+
+```
+results/
+├── experiments.csv              # All experiments
+├── dataset_comparison.csv       # Cross-dataset comparison
+│
+├── MYSTONE/                     # Dataset-specific analysis
+│   ├── experiments.csv
+│   ├── ANALYSIS_SUMMARY.md
+│   ├── plot1_corruption_comparison.png
+│   ├── plot2_strategy_bar_30pct.png
+│   ├── plot3_severity_impact.png
+│   ├── plot4_improvement_percentage.png
+│   └── plot5_f1_comparison.png
+│
+└── [other datasets...]/
+```
+
+### Documentation
+
+- **SETUP_COMPLETE.md** - Overview of what's been set up
+- **ANALYSIS_TOOLS_README.md** - Comprehensive tool reference
+- **DATASET_ANALYSIS_GUIDE.md** - Detailed analysis guide
+
+### Example Workflow
+
+```bash
+# Run experiments on multiple datasets
+python test_fedagain_superiority.py --mystone
+python test_fedagain_superiority.py --cifar10
+python test_fedagain_superiority.py --jonathan-sur
+
+# Analyze all datasets at once
+python analyze_by_dataset.py
+
+# Compare results across datasets
+python compare_datasets.py
+
+# View organized results
+cd results/MYSTONE
+# Windows: type ANALYSIS_SUMMARY.md
+# Linux/Mac: cat ANALYSIS_SUMMARY.md
+```
+
+---
+
