@@ -104,13 +104,12 @@ from image corruption. **Run:** FedAgain vs FedAvg/FedMedian under label-flip at
 
 ---
 
-## Seeds & variance (do this before the sweeps)
-The paper reports variance/stability claims, but corruption and partitioning
-currently use a **hardcoded seed 42** (`src/dataset.py`). To support ≥3 seeds:
-add `SEED` to `config.py`, thread it into the `np.random.seed(...)` calls in
-`apply_corruptions_to_clients` and the partitioners, and include it in
-`tracker_config["seed"]` (already a key field). Then run each cell with
-`SEED ∈ {42, 43, 44}`.
+## Seeds & variance — implemented
+`config.SEED` now controls partitioning, corrupted-client selection, per-client
+corruption, and training RNG (threaded through `load_data` and the partitioners
+in `src/dataset.py`; also seeds torch/cuda in `main.py`). It is part of the
+tracker `run_key`, so each seed is a distinct, resumable run. Sweep multiple
+seeds with the runner's `--seeds 42 43 44`.
 
 ## Suggested execution order
 1. **Seeds knob** (small code change) — unblocks all variance claims.

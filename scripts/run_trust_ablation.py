@@ -51,7 +51,7 @@ def update_config(values: dict) -> None:
 
 
 def run_once(mode, dataset, distribution, corrupt_ratio, severity,
-             num_clients, num_rounds, alpha, beta):
+             num_clients, num_rounds, alpha, beta, seed):
     update_config({
         "STRATEGY": "FedAgain",
         "DATASET": dataset,
@@ -61,6 +61,7 @@ def run_once(mode, dataset, distribution, corrupt_ratio, severity,
         "CORRUPT_CLIENTS": corrupt_ratio > 0,
         "CORRUPT_CLIENT_RATIO": corrupt_ratio,
         "CORRUPTION_SEVERITY": severity,
+        "SEED": seed,
         "FEDAGAIN_TRUST_MODE": mode,
         "FEDAGAIN_ALPHA": alpha,
         "FEDAGAIN_BETA": beta,
@@ -68,7 +69,7 @@ def run_once(mode, dataset, distribution, corrupt_ratio, severity,
     })
     print("\n" + "=" * 80)
     print(f"[trust-ablation] mode={mode} dataset={dataset} "
-          f"dist={distribution} rho={corrupt_ratio} sev={severity}")
+          f"dist={distribution} rho={corrupt_ratio} sev={severity} seed={seed}")
     print("=" * 80)
     result = subprocess.run([sys.executable, str(MAIN_PATH)], cwd=str(ROOT))
     return result.returncode == 0
@@ -82,6 +83,8 @@ def main():
     parser.add_argument("--severity", type=int, default=3)
     parser.add_argument("--num-clients", type=int, default=10)
     parser.add_argument("--num-rounds", type=int, default=10)
+    parser.add_argument("--seeds", nargs="+", type=int, default=[42, 43, 44],
+                        help="run each cell once per seed (variance estimates)")
     parser.add_argument("--alpha", type=float, default=1.0,
                         help="weight on E_k for weighted_additive")
     parser.add_argument("--beta", type=float, default=1.0,
@@ -96,18 +99,19 @@ def main():
     summary = {}
     for dataset in args.datasets:
         for mode in args.modes:
-            ok = run_once(
-                mode, dataset, args.distribution, args.corrupt_ratio,
-                args.severity, args.num_clients, args.num_rounds,
-                args.alpha, args.beta,
-            )
-            summary[(dataset, mode)] = "OK" if ok else "FAILED"
+            for seed in args.seeds:
+                ok = run_once(
+                    mode, dataset, args.distribution, args.corrupt_ratio,
+                    args.severity, args.num_clients, args.num_rounds,
+                    args.alpha, args.beta, seed,
+                )
+                summary[(dataset, mode, seed)] = "OK" if ok else "FAILED"
 
     print("\n" + "=" * 80)
     print("TRUST ABLATION SUMMARY")
     print("=" * 80)
-    for (dataset, mode), status in summary.items():
-        print(f"  {dataset:15} {mode:20} {status}")
+    for (dataset, mode, seed), status in summary.items():
+        print(f"  {dataset:15} {mode:20} seed={seed} {status}")
     print("\nFinal metrics -> results/experiments.csv")
     print("Per-round trust scores -> results/trust_scores/")
 

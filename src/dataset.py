@@ -552,26 +552,28 @@ def load_dataset(dataset_name: str, root: str = "./data"):
     return train_dataset, test_dataset, dataset_info
 
 
-def apply_corruptions_to_clients(client_datasets, corrupt_ratio=0.3, severity=3):
+def apply_corruptions_to_clients(client_datasets, corrupt_ratio=0.3, severity=3, seed=42):
     """
     Apply corruptions to a subset of clients (simulating corrupted/poisoned clients).
-    
+
     Args:
         client_datasets: List of client datasets
         corrupt_ratio: Ratio of clients to corrupt (e.g., 0.3 = 30%)
         severity: Corruption severity (1-5)
-    
+        seed: Random seed controlling which clients are corrupted and their
+              per-client corruption instances (varies across experiment seeds)
+
     Returns:
         List of datasets (some corrupted, some clean)
         List of corrupted client indices
     """
     import numpy as np
-    
+
     num_clients = len(client_datasets)
     num_corrupt = int(num_clients * corrupt_ratio)
-    
+
     # Randomly select clients to corrupt
-    np.random.seed(42)
+    np.random.seed(seed)
     corrupted_indices = np.random.choice(num_clients, num_corrupt, replace=False)
     
     print(f"\n[Corrupted Clients Simulation]")
@@ -587,9 +589,9 @@ def apply_corruptions_to_clients(client_datasets, corrupt_ratio=0.3, severity=3)
         if i in corrupted_indices:
             # Wrap dataset with corruption
             corrupted_dataset = CorruptedDataset(
-                dataset, 
+                dataset,
                 severity=severity,
-                seed=42 + i  # Different seed per client
+                seed=seed + i  # Different seed per client
             )
             result_datasets.append(corrupted_dataset)
         else:
@@ -599,23 +601,24 @@ def apply_corruptions_to_clients(client_datasets, corrupt_ratio=0.3, severity=3)
     return result_datasets, corrupted_indices.tolist()
 
 
-def partition_data_iid(dataset, num_clients: int):
+def partition_data_iid(dataset, num_clients: int, seed: int = 42):
     """IID partition: randomly split data equally among clients."""
     partition_size = len(dataset) // num_clients
     lengths = [partition_size] * num_clients
     lengths[-1] += len(dataset) - sum(lengths)
-    
-    return random_split(dataset, lengths, generator=torch.Generator().manual_seed(42))
+
+    return random_split(dataset, lengths, generator=torch.Generator().manual_seed(seed))
 
 
-def partition_data_non_iid_label(dataset, num_clients: int, classes_per_client: int = 2):
+def partition_data_non_iid_label(dataset, num_clients: int, classes_per_client: int = 2,
+                                 seed: int = 42):
     """
     Non-IID partition: each client has imbalanced class distribution.
     Each client has all classes, but dominated by a few (label skew).
     """
     import numpy as np
     from torch.utils.data import Subset
-    
+
     # Get all labels
     if hasattr(dataset, 'targets'):
         labels = np.array(dataset.targets)
@@ -624,9 +627,9 @@ def partition_data_non_iid_label(dataset, num_clients: int, classes_per_client: 
     else:
         # Extract labels by iterating (slower but works for all datasets)
         labels = np.array([dataset[i][1] for i in range(len(dataset))])
-    
+
     num_classes = len(np.unique(labels))
-    np.random.seed(42)
+    np.random.seed(seed)
     
     # Group indices by class
     class_indices = {i: np.where(labels == i)[0] for i in range(num_classes)}
@@ -672,14 +675,15 @@ def partition_data_non_iid_label(dataset, num_clients: int, classes_per_client: 
     return client_datasets
 
 
-def partition_data_non_iid_dirichlet(dataset, num_clients: int, alpha: float = 0.5):
+def partition_data_non_iid_dirichlet(dataset, num_clients: int, alpha: float = 0.5,
+                                     seed: int = 42):
     """
     Non-IID partition using Dirichlet distribution.
     Lower alpha = more non-IID (realistic federated scenario).
     """
     import numpy as np
     from torch.utils.data import Subset
-    
+
     # Get all labels
     if hasattr(dataset, 'targets'):
         labels = np.array(dataset.targets)
@@ -687,8 +691,9 @@ def partition_data_non_iid_dirichlet(dataset, num_clients: int, alpha: float = 0
         labels = np.array(dataset.labels)
     else:
         labels = np.array([dataset[i][1] for i in range(len(dataset))])
-    
+
     num_classes = len(np.unique(labels))
+    np.random.seed(seed)
     label_distribution = np.random.dirichlet([alpha] * num_clients, num_classes)
     
     client_indices = [[] for _ in range(num_clients)]
@@ -725,8 +730,9 @@ def partition_data_non_iid_dirichlet(dataset, num_clients: int, alpha: float = 0
 
 
 def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: int = 32,
-              distribution: str = "iid", classes_per_client: int = 2, 
-              dirichlet_alpha: float = 0.5) -> Tuple[List[DataLoader], List[DataLoader], DataLoader, Dict]:
+              distribution: str = "iid", classes_per_client: int = 2,
+              dirichlet_alpha: float = 0.5,
+              seed: int = 42) -> Tuple[List[DataLoader], List[DataLoader], DataLoader, Dict]:
     """
     Load and partition the specified dataset for federated learning.
     
@@ -747,13 +753,13 @@ def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: i
     # Partition training data based on distribution type
     if distribution == "iid":
         print(f"  - Distribution: IID (random split)")
-        client_datasets = partition_data_iid(train_dataset, num_clients)
+        client_datasets = partition_data_iid(train_dataset, num_clients, seed=seed)
     elif distribution == "non-iid-label":
         print(f"  - Distribution: Non-IID (label skew, {classes_per_client} classes per client)")
-        client_datasets = partition_data_non_iid_label(train_dataset, num_clients, classes_per_client)
+        client_datasets = partition_data_non_iid_label(train_dataset, num_clients, classes_per_client, seed=seed)
     elif distribution == "non-iid-dirichlet":
         print(f"  - Distribution: Non-IID (Dirichlet alpha={dirichlet_alpha})")
-        client_datasets = partition_data_non_iid_dirichlet(train_dataset, num_clients, dirichlet_alpha)
+        client_datasets = partition_data_non_iid_dirichlet(train_dataset, num_clients, dirichlet_alpha, seed=seed)
     else:
         raise ValueError(f"Unknown distribution: {distribution}")
     
@@ -766,7 +772,8 @@ def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: i
         client_datasets, corrupted_client_ids = apply_corruptions_to_clients(
             client_datasets,
             corrupt_ratio=corrupt_ratio,
-            severity=corruption_severity
+            severity=corruption_severity,
+            seed=seed
         )
     
     # Create train and validation loaders for each client
@@ -781,7 +788,7 @@ def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: i
         ds_train, ds_val = random_split(
             client_dataset,
             [len_train, len_val],
-            generator=torch.Generator().manual_seed(42)
+            generator=torch.Generator().manual_seed(seed)
         )
         
         train_loaders.append(DataLoader(ds_train, batch_size=batch_size, shuffle=True))

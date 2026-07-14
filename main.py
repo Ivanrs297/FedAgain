@@ -179,13 +179,21 @@ if __name__ == "__main__":
         "trust_mode": getattr(config, "FEDAGAIN_TRUST_MODE", "combined_mult") if is_fedagain else "",
         "trust_alpha": getattr(config, "FEDAGAIN_ALPHA", 1.0) if is_fedagain else "",
         "trust_beta": getattr(config, "FEDAGAIN_BETA", 1.0) if is_fedagain else "",
-        "seed": 42,
+        "seed": getattr(config, "SEED", 42),
     }
     tracker = ExperimentTracker(tracker_config, results_dir="results")
     if tracker.is_completed() and os.environ.get("EXPERIMENT_FORCE") != "1":
         print(f"[tracker] run '{tracker.run_key}' already completed -> "
               f"skipping (set EXPERIMENT_FORCE=1 to force a rerun).")
         sys.exit(0)
+
+    # Seed the global RNGs for reproducible training (partitioning and
+    # corruption are additionally seeded inside load_data).
+    seed = getattr(config, "SEED", 42)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
     # Check CUDA availability
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -213,7 +221,8 @@ if __name__ == "__main__":
         batch_size=config.BATCH_SIZE,
         distribution=config.DATA_DISTRIBUTION,
         classes_per_client=config.NON_IID_CLASSES_PER_CLIENT,
-        dirichlet_alpha=config.DIRICHLET_ALPHA
+        dirichlet_alpha=config.DIRICHLET_ALPHA,
+        seed=seed
     )
     
     print(f"\nDataset Information:")
