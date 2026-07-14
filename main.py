@@ -9,11 +9,11 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 import torch
 from collections import OrderedDict
-from model import get_model
-from dataset import load_data
-from client import train, test
-from fedagain import FedAgainStrategy, compute_benchmark_error
-from logger import ExperimentLogger, compute_classification_metrics
+from src.model import get_model
+from src.dataset import load_data
+from src.client import train, test
+from src.strategies.fedagain import FedAgainStrategy, compute_benchmark_error
+from src.logger import ExperimentLogger, compute_classification_metrics
 import config
 import numpy as np
 
@@ -217,10 +217,21 @@ if __name__ == "__main__":
         # Will be initialized after first round
         pass
     elif config.STRATEGY == "FedAgain":
-        # Initialize FedAgain strategy
-        epsilon = config.FEDAGAIN_EPSILON if hasattr(config, 'FEDAGAIN_EPSILON') else 1e-6
-        fedagain_strategy = FedAgainStrategy(epsilon=epsilon)
+        # Initialize FedAgain strategy (trust formulation configurable for the
+        # ablation (#2) and multiplicative-vs-additive (#3) experiments).
+        epsilon = getattr(config, 'FEDAGAIN_EPSILON', 1e-6)
+        trust_mode = getattr(config, 'FEDAGAIN_TRUST_MODE', 'combined_mult')
+        alpha = getattr(config, 'FEDAGAIN_ALPHA', 1.0)
+        beta = getattr(config, 'FEDAGAIN_BETA', 1.0)
+        log_trust = getattr(config, 'FEDAGAIN_LOG_TRUST', False)
+        fedagain_strategy = FedAgainStrategy(
+            epsilon=epsilon, mode=trust_mode, alpha=alpha, beta=beta,
+            log_trust=log_trust,
+        )
         print(f"  - FedAgain epsilon: {epsilon}")
+        print(f"  - FedAgain trust mode: {trust_mode}"
+              + (f" (alpha={alpha}, beta={beta})"
+                 if trust_mode == "weighted_additive" else ""))
     
     print("\n" + "=" * 70)
     print(f"Starting Federated Learning with {config.STRATEGY}...")
@@ -446,5 +457,21 @@ if __name__ == "__main__":
     }
     
     logger.log_experiment(experiment_config, final_metrics)
-    
+
+    # Save per-round trust scores for the FedAgain ablation (#2) / sensitivity
+    # (#3) studies.
+    if (config.STRATEGY == "FedAgain"
+            and getattr(config, "FEDAGAIN_LOG_TRUST", False)
+            and fedagain_strategy is not None):
+        trust_dir = os.path.join("results", "trust_scores")
+        os.makedirs(trust_dir, exist_ok=True)
+        mode = getattr(config, "FEDAGAIN_TRUST_MODE", "combined_mult")
+        trust_path = os.path.join(
+            trust_dir,
+            f"trust_{config.DATASET}_{config.DATA_DISTRIBUTION}_{mode}"
+            f"_c{config.NUM_CLIENTS}_r{config.NUM_ROUNDS}.csv"
+        )
+        fedagain_strategy.save_trust_log(trust_path)
+        print(f"  - Trust scores saved to: {trust_path}")
+
     print("=" * 70)

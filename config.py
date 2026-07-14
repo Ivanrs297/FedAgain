@@ -6,16 +6,16 @@ Modify these settings to change dataset, model, and training parameters.
 # Dataset Configuration
 # Options: "MNIST", "EMNIST", "CIFAR10", "CIFAR100"
 # Kidney Stones: "JONATHAN_MIX", "JONATHAN_SEC", "JONATHAN_SUR", "DAUDON_MIX", "DAUDON_SEC", "DAUDON_SUR", "MYSTONE"
-DATASET = "MNIST"
+DATASET = "DAUDON_MIX"
 
 # Federated Learning Configuration
-STRATEGY = "FedAgain"
+STRATEGY = "FedMedian"
 NUM_CLIENTS = 20
 NUM_ROUNDS = 10
 LOCAL_EPOCHS = 1
 
 # Data Distribution Configuration
-DATA_DISTRIBUTION = "non-iid-label"
+DATA_DISTRIBUTION = "iid"
 NON_IID_CLASSES_PER_CLIENT = 2  # For non-iid-label: how many PRIMARY classes each client specializes in (they still get small samples of other classes)
 DIRICHLET_ALPHA = 0.5  # For non-iid-dirichlet: concentration parameter (lower = more non-IID)
 
@@ -35,6 +35,16 @@ FEDYOGI_TAU = 1e-2  # FedYogi numerical stability constant (larger for deep netw
 BULYAN_NUM_MALICIOUS = 1  # Bulyan: number of Byzantine/malicious clients to tolerate
 BULYAN_TO_KEEP = None  # Bulyan: number of clients to keep (None = auto)
 FEDAGAIN_EPSILON = 1e-6  # FedAgain: small constant for numerical stability in trust weight
+# FedAgain trust formulation (experiments #2 ablation and #3 sensitivity):
+#   "combined_mult"     -> T = 1/(E*D + eps)          (default)
+#   "benchmark_only"    -> T = 1/(E + eps)            (ablation: E only)
+#   "divergence_only"   -> T = 1/(D + eps)            (ablation: D only)
+#   "additive"          -> T = 1/(E + D + eps)
+#   "weighted_additive" -> T = 1/(alpha*E + beta*D + eps)
+FEDAGAIN_TRUST_MODE = "combined_mult"
+FEDAGAIN_ALPHA = 1.0  # weight on benchmark error E_k (weighted_additive only)
+FEDAGAIN_BETA = 1.0   # weight on divergence D_k (weighted_additive only)
+FEDAGAIN_LOG_TRUST = False  # dump per-round trust scores to results/trust_scores/
 
 # Training Configuration
 BATCH_SIZE = 32
