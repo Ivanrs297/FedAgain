@@ -7,6 +7,7 @@ Supports FedAvg, FedProx, FedAdam, FedMedian, Bulyan, and FedAgain.
 import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
+import sys
 import torch
 from collections import OrderedDict
 from src.model import get_model
@@ -14,6 +15,7 @@ from src.dataset import load_data
 from src.client import train, test
 from src.strategies.fedagain import FedAgainStrategy, compute_benchmark_error
 from src.logger import ExperimentLogger, compute_classification_metrics
+from src.tracking import ExperimentTracker
 import config
 import numpy as np
 
@@ -155,7 +157,36 @@ def evaluate_global_model(server_round: int, parameters, config_dict,
 if __name__ == "__main__":
     # Initialize experiment logger
     logger = ExperimentLogger(results_dir="results")
-    
+
+    # Build the experiment identity and resilient tracker. It writes results
+    # incrementally (per round) and lets already-completed runs be skipped on
+    # resume, which matters for long, failure-prone experiment sweeps.
+    is_fedagain = config.STRATEGY == "FedAgain"
+    tracker_config = {
+        "model": config.MODEL_NAME.upper(),
+        "strategy": config.STRATEGY,
+        "dataset": config.DATASET,
+        "data_distribution": config.DATA_DISTRIBUTION,
+        "num_clients": config.NUM_CLIENTS,
+        "num_rounds": config.NUM_ROUNDS,
+        "local_epochs": config.LOCAL_EPOCHS,
+        "batch_size": config.BATCH_SIZE,
+        "learning_rate": config.LEARNING_RATE,
+        "use_pretrained": config.USE_PRETRAINED,
+        "corrupt_clients": getattr(config, "CORRUPT_CLIENTS", False),
+        "corrupt_ratio": getattr(config, "CORRUPT_CLIENT_RATIO", 0.0),
+        "corruption_severity": getattr(config, "CORRUPTION_SEVERITY", 0),
+        "trust_mode": getattr(config, "FEDAGAIN_TRUST_MODE", "combined_mult") if is_fedagain else "",
+        "trust_alpha": getattr(config, "FEDAGAIN_ALPHA", 1.0) if is_fedagain else "",
+        "trust_beta": getattr(config, "FEDAGAIN_BETA", 1.0) if is_fedagain else "",
+        "seed": 42,
+    }
+    tracker = ExperimentTracker(tracker_config, results_dir="results")
+    if tracker.is_completed() and os.environ.get("EXPERIMENT_FORCE") != "1":
+        print(f"[tracker] run '{tracker.run_key}' already completed -> "
+              f"skipping (set EXPERIMENT_FORCE=1 to force a rerun).")
+        sys.exit(0)
+
     # Check CUDA availability
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
@@ -239,7 +270,8 @@ if __name__ == "__main__":
     
     # Run federated learning rounds manually (no simulation/Ray)
     final_acc = 0.0
-    
+    tracker.start()
+
     for round_num in range(config.NUM_ROUNDS):
         print(f"\n--- Round {round_num + 1}/{config.NUM_ROUNDS} ---")
         
@@ -412,7 +444,11 @@ if __name__ == "__main__":
         # Evaluate global model
         loss, metrics = evaluate_global_model(round_num + 1, parameters, {})
         final_acc = metrics["accuracy"]
-        
+
+        # Persist this round's result immediately (crash-resilient).
+        tracker.log_round(round_num + 1,
+                          {"accuracy": metrics["accuracy"], "loss": loss})
+
         print("=" * 70)
     
     print("\n" + "=" * 70)
@@ -473,5 +509,8 @@ if __name__ == "__main__":
         )
         fedagain_strategy.save_trust_log(trust_path)
         print(f"  - Trust scores saved to: {trust_path}")
+
+    # Mark the run completed in the resilient tracker.
+    tracker.finish(final_metrics)
 
     print("=" * 70)
