@@ -271,10 +271,10 @@ def trust_evolution():
     label = {"combined_mult": "FedAgain ($E_kD_k$, mult.)", "benchmark_only": "$E_k$ only",
              "additive": "$E_k{+}D_k$ (add.)", "divergence_only": "$D_k$ only"}
 
-    # 2x2 grid so each panel is large and readable at \textwidth.
+    # 2x2 grid, wide landscape aspect to fill the two-column (\textwidth) figure.
     ncols = 2
     nrows = (len(datasets) + ncols - 1) // ncols
-    fig, axes = plt.subplots(nrows, ncols, figsize=(7.0 * ncols, 5.0 * nrows),
+    fig, axes = plt.subplots(nrows, ncols, figsize=(9.5 * ncols, 4.0 * nrows),
                              squeeze=False)
     axflat = axes.flatten()
     for j, ds in enumerate(datasets):
@@ -299,10 +299,8 @@ def trust_evolution():
         ax.grid(alpha=0.35, which="both")
     for k in range(len(datasets), len(axflat)):
         axflat[k].set_visible(False)
-    axflat[0].legend(fontsize=15, loc="upper left", framealpha=0.9)
-    fig.suptitle("Progressive down-weighting of corrupted clients over rounds "
-                 "(higher = stronger isolation; log scale)", fontsize=18)
-    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    axflat[0].legend(fontsize=16, loc="upper left", framealpha=0.9)
+    fig.tight_layout()
     fig.savefig(os.path.join(OUT, "trust_evolution.png"), dpi=150,
                 bbox_inches="tight")
     plt.close(fig)
