@@ -263,18 +263,22 @@ def trust_evolution():
     datasets = sorted({k[0] for k in data})
     order = ["combined_mult", "benchmark_only", "additive", "divergence_only"]
     style = {  # FedAgain (multiplicative) emphasized
-        "combined_mult": dict(color="#d62728", lw=2.6, marker="o", ms=4, zorder=5),
-        "benchmark_only": dict(color="#1f77b4", lw=1.4, marker="s", ms=3, ls="--"),
-        "additive": dict(color="#7f7f7f", lw=1.2, marker="^", ms=3, ls=":"),
-        "divergence_only": dict(color="#bcbd22", lw=1.2, marker="v", ms=3, ls=":"),
+        "combined_mult": dict(color="#d62728", lw=3.6, marker="o", ms=8, zorder=5),
+        "benchmark_only": dict(color="#1f77b4", lw=2.4, marker="s", ms=6, ls="--"),
+        "additive": dict(color="#7f7f7f", lw=2.0, marker="^", ms=6, ls=":"),
+        "divergence_only": dict(color="#bcbd22", lw=2.0, marker="v", ms=6, ls=":"),
     }
     label = {"combined_mult": "FedAgain ($E_kD_k$, mult.)", "benchmark_only": "$E_k$ only",
              "additive": "$E_k{+}D_k$ (add.)", "divergence_only": "$D_k$ only"}
 
-    fig, axes = plt.subplots(1, len(datasets), figsize=(5 * len(datasets), 4),
+    # 2x2 grid so each panel is large and readable at \textwidth.
+    ncols = 2
+    nrows = (len(datasets) + ncols - 1) // ncols
+    fig, axes = plt.subplots(nrows, ncols, figsize=(7.0 * ncols, 5.0 * nrows),
                              squeeze=False)
+    axflat = axes.flatten()
     for j, ds in enumerate(datasets):
-        ax = axes[0][j]
+        ax = axflat[j]
         for mode in order:
             d = data.get((ds, mode))
             if not d:
@@ -286,16 +290,21 @@ def trust_evolution():
                 c = np.mean(d[r]["c"]) if d[r]["c"] else np.nan
                 ys.append(b / c if c else np.nan)
             ax.plot(xs, ys, label=label[mode], **style[mode])
-        ax.axhline(1.0, color="k", lw=0.6, alpha=0.5)
+        ax.axhline(1.0, color="k", lw=1.0, alpha=0.5)
         ax.set_yscale("log")
-        ax.set_title(ds); ax.set_xlabel("round")
-        ax.set_ylabel("benign / corrupted trust ratio")
-        ax.grid(alpha=0.3, which="both")
-    axes[0][0].legend(fontsize=8, loc="upper left")
+        ax.set_title(ds, fontsize=20, fontweight="bold")
+        ax.set_xlabel("communication round", fontsize=17)
+        ax.set_ylabel("benign / corrupted\ntrust ratio", fontsize=17)
+        ax.tick_params(axis="both", labelsize=14)
+        ax.grid(alpha=0.35, which="both")
+    for k in range(len(datasets), len(axflat)):
+        axflat[k].set_visible(False)
+    axflat[0].legend(fontsize=15, loc="upper left", framealpha=0.9)
     fig.suptitle("Progressive down-weighting of corrupted clients over rounds "
-                 "(higher = stronger isolation; log scale)")
-    fig.tight_layout()
-    fig.savefig(os.path.join(OUT, "trust_evolution.png"), dpi=130)
+                 "(higher = stronger isolation; log scale)", fontsize=18)
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    fig.savefig(os.path.join(OUT, "trust_evolution.png"), dpi=150,
+                bbox_inches="tight")
     plt.close(fig)
 
 
