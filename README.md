@@ -14,17 +14,40 @@ A simple and extensible federated learning project using PyTorch with CUDA suppo
 ## Project Structure
 
 ```
-├── main.py             # Main federated learning loop (all strategies)
-├── run_experiments.py  # Batch experiment runner
-├── config.py           # Configuration (dataset, strategy, hyperparameters)
-├── client.py           # Client training and evaluation functions
-├── model.py            # ResNet18 model definition
-├── dataset.py          # Dataset loading and partitioning
-├── fedagain.py         # FedAgain custom strategy
-├── logger.py           # CSV experiment logger
-├── results/            # Experiment results (CSV files)
-└── requirements.txt    # Dependencies
+├── main.py                 # Entry point: federated loop (all strategies)
+├── config.py               # Configuration (dataset, strategy, hyperparameters)
+├── src/                    # Library package
+│   ├── model.py            # ResNet18 model
+│   ├── dataset.py          # Dataset loading, partitioning, corruption (seeded)
+│   ├── client.py           # Local training (incl. train_moon, train_scaffold)
+│   ├── logger.py           # Legacy CSV logger (results/experiments.csv)
+│   ├── tracking.py         # Resilient experiment tracker (incremental, resumable)
+│   └── strategies/
+│       ├── fedagain.py     # FedAgain trust-based strategy
+│       └── trust.py        # Pluggable trust formulations (#2/#3 ablation)
+├── scripts/                # Experiment runners (run from repo root)
+│   ├── run_trust_ablation.py   # #2/#3 trust ablation sweep
+│   ├── run_baselines.py        # FedAgain vs baselines sweep
+│   ├── run_baseline_sweep.sh   # detached baseline comparison
+│   └── run_*.py                # other batch runners
+├── analysis/               # Analysis & plotting (analyze_*, visualize_*)
+├── tests/                  # Unit tests (test_trust, test_tracking, ...)
+├── docs/                   # Guides + EXPERIMENT_PLAN.md (reviewer mapping)
+├── results/                # Experiment outputs (see below)
+├── jcr-fedagain/src-paper/ # LaTeX manuscript (MedIA revision)
+└── requirements.txt
+
+# results/ layout (written by src/tracking.py, resumable):
+#   experiment_ledger.csv   one row per finished run (config + metrics + status)
+#   runs/<key>.json         per-run manifest (updated every round)
+#   rounds/<key>.csv        per-round metrics, written live
+#   trust_scores/           per-round E_k/D_k/T_k logs (FedAgain, FEDAGAIN_LOG_TRUST)
+#   experiments.csv         legacy logger output (unchanged)
 ```
+
+> **See [`CLAUDE.md`](CLAUDE.md)** for the full project context and the Medical
+> Image Analysis revision status, and [`docs/EXPERIMENT_PLAN.md`](docs/EXPERIMENT_PLAN.md)
+> for the experiments mapped to each reviewer comment.
 
 ## Installation
 
@@ -169,7 +192,10 @@ Manual implementations (no external framework dependencies):
 | **FedProx** | Federated Proximal (Li et al., 2020) | Adds proximal term to handle heterogeneity |
 | **FedMedian** | Coordinate-wise Median | Robust to Byzantine attacks and outliers |
 | **Bulyan** | Byzantine-robust (Mhamdi et al., 2018) | Removes outliers before aggregation |
-| **FedAgain** | Trust-based aggregation (Custom) | Weights clients by benchmark error × divergence |
+| **FedBN** | Local BatchNorm (Li et al., 2021) | Keeps each client's BN params local |
+| **Scaffold** | Control variates (Karimireddy et al., 2020) | Corrects client drift under non-IID (plain SGD) |
+| **MOON** | Model-contrastive (Li et al., 2021) | Contrastive term: local rep ↔ global vs. previous |
+| **FedAgain** | Trust-based aggregation (Ours) | Weights clients by benchmark error × divergence |
 
 ### Strategy Details
 
