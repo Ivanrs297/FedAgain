@@ -188,10 +188,14 @@ def trust_distribution():
     # boxplot: one panel per dataset, corrupted vs benign per mode
     datasets = sorted({k[0] for k in data})
     modes = [m for m in MODES if any((ds, m) in data for ds in datasets)]
-    fig, axes = plt.subplots(1, len(datasets), figsize=(5 * len(datasets), 4),
+    # 2x2 grid, wide landscape aspect to fill the two-column (\textwidth) figure.
+    ncols = 2
+    nrows = (len(datasets) + ncols - 1) // ncols
+    fig, axes = plt.subplots(nrows, ncols, figsize=(9.5 * ncols, 4.0 * nrows),
                              squeeze=False)
+    axflat = axes.flatten()
     for j, ds in enumerate(datasets):
-        ax = axes[0][j]
+        ax = axflat[j]
         positions, labels, box_data, colors = [], [], [], []
         for i, mode in enumerate(modes):
             d = data.get((ds, mode))
@@ -206,19 +210,22 @@ def trust_distribution():
         bp = ax.boxplot(box_data, positions=positions, widths=0.8,
                         patch_artist=True, showfliers=False)
         for patch, col in zip(bp["boxes"], colors):
-            patch.set_facecolor(col); patch.set_alpha(0.7)
+            patch.set_facecolor(col); patch.set_alpha(0.75)
         ax.set_xticks([p for p, _ in labels])
-        ax.set_xticklabels([l for _, l in labels], rotation=30, fontsize=8)
-        ax.set_title(ds); ax.set_ylabel("normalized trust weight")
-        ax.grid(alpha=0.3, axis="y")
-    # legend
+        ax.set_xticklabels([l for _, l in labels], rotation=15, fontsize=14)
+        ax.set_title(ds, fontsize=20, fontweight="bold")
+        ax.set_ylabel("normalized trust weight", fontsize=16)
+        ax.tick_params(axis="y", labelsize=13)
+        ax.grid(alpha=0.35, axis="y")
+    for k in range(len(datasets), len(axflat)):
+        axflat[k].set_visible(False)
     from matplotlib.patches import Patch
-    axes[0][0].legend(handles=[Patch(color="#4c78a8", label="benign"),
-                               Patch(color="#e45756", label="corrupted")],
-                      fontsize=8)
-    fig.suptitle("Trust weight: benign vs corrupted clients (seed 44)")
+    axflat[0].legend(handles=[Patch(color="#4c78a8", label="benign"),
+                              Patch(color="#e45756", label="corrupted")],
+                     fontsize=15, loc="upper left")
     fig.tight_layout()
-    fig.savefig(os.path.join(OUT, "trust_distribution.png"), dpi=130)
+    fig.savefig(os.path.join(OUT, "trust_distribution.png"), dpi=150,
+                bbox_inches="tight")
     plt.close(fig)
     return supp_rows
 
