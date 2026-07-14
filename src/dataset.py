@@ -732,7 +732,8 @@ def partition_data_non_iid_dirichlet(dataset, num_clients: int, alpha: float = 0
 def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: int = 32,
               distribution: str = "iid", classes_per_client: int = 2,
               dirichlet_alpha: float = 0.5,
-              seed: int = 42) -> Tuple[List[DataLoader], List[DataLoader], DataLoader, Dict]:
+              seed: int = 42,
+              num_workers: int = 0) -> Tuple[List[DataLoader], List[DataLoader], DataLoader, Dict]:
     """
     Load and partition the specified dataset for federated learning.
     
@@ -791,11 +792,17 @@ def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: i
             generator=torch.Generator().manual_seed(seed)
         )
         
-        train_loaders.append(DataLoader(ds_train, batch_size=batch_size, shuffle=True))
-        val_loaders.append(DataLoader(ds_val, batch_size=batch_size))
-    
+        train_loaders.append(DataLoader(
+            ds_train, batch_size=batch_size, shuffle=True,
+            num_workers=num_workers, pin_memory=True))
+        val_loaders.append(DataLoader(
+            ds_val, batch_size=batch_size,
+            num_workers=num_workers, pin_memory=True))
+
     # Create centralized test loader
-    test_loader = DataLoader(test_dataset, batch_size=batch_size)
+    test_loader = DataLoader(
+        test_dataset, batch_size=batch_size,
+        num_workers=num_workers, pin_memory=True)
     
     return train_loaders, val_loaders, test_loader, dataset_info
 

@@ -222,7 +222,8 @@ if __name__ == "__main__":
         distribution=config.DATA_DISTRIBUTION,
         classes_per_client=config.NON_IID_CLASSES_PER_CLIENT,
         dirichlet_alpha=config.DIRICHLET_ALPHA,
-        seed=seed
+        seed=seed,
+        num_workers=getattr(config, "NUM_WORKERS", 0)
     )
     
     print(f"\nDataset Information:")

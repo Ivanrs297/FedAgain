@@ -50,6 +50,9 @@ FEDAGAIN_LOG_TRUST = False  # dump per-round trust scores to results/trust_score
 BATCH_SIZE = 32
 LEARNING_RATE = 0.01
 MOMENTUM = 0.9
+NUM_WORKERS = 8  # DataLoader worker processes. Parallelizes the CPU-bound
+                 # on-the-fly image corruption. Clients train sequentially, so
+                 # only one loader's workers are active at a time.
 SEED = 42  # Global seed: controls partitioning, corrupted-client selection,
            # per-client corruption, and training RNG. Vary (e.g. 42/43/44)
            # across repeated runs for variance/stability estimates.
