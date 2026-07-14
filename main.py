@@ -12,7 +12,7 @@ import torch
 from collections import OrderedDict
 from src.model import get_model
 from src.dataset import load_data
-from src.client import train, test
+from src.client import train, test, train_moon, train_scaffold
 from src.strategies.fedagain import FedAgainStrategy, compute_benchmark_error
 from src.logger import ExperimentLogger, compute_classification_metrics
 from src.tracking import ExperimentTracker
@@ -30,6 +30,15 @@ dataset_info = None
 # local per client, and the per-client BatchNorm state persisted across rounds.
 bn_param_indices = None
 client_bn_state = {}
+
+# MOON: per-client previous-round model parameters (for the contrastive term).
+client_prev_state = {}
+
+# SCAFFOLD: global control variate, per-client control variates, and the
+# per-round accumulator of client control-variate deltas.
+scaffold_c_global = None
+scaffold_c_local_state = {}
+scaffold_round_deltas = []
 
 
 def compute_bn_param_indices(model):
@@ -103,17 +112,44 @@ class FederatedClient:
             proximal_mu = config.FEDPROX_PROXIMAL_MU
             global_params = parameters  # Store global model parameters
         
-        # Train locally
-        train_loss, train_acc = train(
-            self.model,
-            self.trainloader,
-            epochs=config.LOCAL_EPOCHS,
-            device=self.device,
-            lr=config.LEARNING_RATE,
-            momentum=config.MOMENTUM,
-            proximal_mu=proximal_mu,
-            global_params=global_params
-        )
+        # Train locally (strategy-specific local objective).
+        if config.STRATEGY == "MOON":
+            import copy
+            global_net = copy.deepcopy(self.model)   # the just-set global model
+            prev_net = copy.deepcopy(self.model)
+            prev = client_prev_state.get(self.cid)
+            if prev is not None:
+                pd = zip(prev_net.state_dict().keys(), prev)
+                prev_net.load_state_dict(
+                    OrderedDict({k: torch.tensor(v) for k, v in pd}), strict=True)
+            train_loss, train_acc = train_moon(
+                self.model, self.trainloader, config.LOCAL_EPOCHS, self.device,
+                config.LEARNING_RATE, config.MOMENTUM, global_net, prev_net,
+                mu=getattr(config, "MOON_MU", 1.0),
+                temperature=getattr(config, "MOON_TEMPERATURE", 0.5))
+        elif config.STRATEGY == "Scaffold":
+            c_local = scaffold_c_local_state.get(self.cid)
+            if c_local is None:
+                c_local = {n: torch.zeros_like(p)
+                           for n, p in self.model.named_parameters()}
+            c_global = scaffold_c_global if scaffold_c_global is not None else \
+                {n: torch.zeros_like(p) for n, p in self.model.named_parameters()}
+            train_loss, train_acc, new_c_local, delta_c = train_scaffold(
+                self.model, self.trainloader, config.LOCAL_EPOCHS, self.device,
+                config.LEARNING_RATE, config.MOMENTUM, c_global, c_local)
+            scaffold_c_local_state[self.cid] = new_c_local
+            scaffold_round_deltas.append(delta_c)
+        else:
+            train_loss, train_acc = train(
+                self.model,
+                self.trainloader,
+                epochs=config.LOCAL_EPOCHS,
+                device=self.device,
+                lr=config.LEARNING_RATE,
+                momentum=config.MOMENTUM,
+                proximal_mu=proximal_mu,
+                global_params=global_params
+            )
         
         print(f"  Client {int(self.cid) + 1}: Loss={train_loss:.4f}, Accuracy={train_acc:.4f}, BenchErr={benchmark_error:.4f}")
         
@@ -121,6 +157,10 @@ class FederatedClient:
         if config.STRATEGY == "FedBN" and bn_param_indices:
             full = self.get_parameters(config_dict={})
             client_bn_state[self.cid] = [full[idx] for idx in bn_param_indices]
+
+        # MOON: remember this client's post-training model for the next round.
+        if config.STRATEGY == "MOON":
+            client_prev_state[self.cid] = self.get_parameters(config_dict={})
 
         # Return parameters with benchmark error in metrics
         metrics = {"benchmark_error": benchmark_error} if config.STRATEGY == "FedAgain" else {}
@@ -334,6 +374,7 @@ if __name__ == "__main__":
             parameters = clients[0].get_parameters(config_dict={})
         
         # Fit clients
+        scaffold_round_deltas.clear()  # SCAFFOLD: reset per-round delta accumulator
         results = []
         for i, client in enumerate(clients):
             fit_result = client.fit(parameters, config_dict={})
@@ -491,7 +532,17 @@ if __name__ == "__main__":
                 aggregated.append(weighted_sum)
             
             parameters = aggregated
-        
+
+        # SCAFFOLD: update the global control variate  c <- c + mean(delta c_i).
+        if config.STRATEGY == "Scaffold" and scaffold_round_deltas:
+            if scaffold_c_global is None:
+                scaffold_c_global = {n: torch.zeros_like(d)
+                                     for n, d in scaffold_round_deltas[0].items()}
+            n_cli = len(scaffold_round_deltas)
+            for n in scaffold_c_global:
+                scaffold_c_global[n] = scaffold_c_global[n] + \
+                    sum(d[n] for d in scaffold_round_deltas) / n_cli
+
         # Evaluate global model
         loss, metrics = evaluate_global_model(round_num + 1, parameters, {})
         final_acc = metrics["accuracy"]

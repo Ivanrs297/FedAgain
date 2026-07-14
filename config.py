@@ -32,6 +32,8 @@ FEDYOGI_SERVER_LR = 0.001  # Server learning rate for FedYogi (very small for st
 FEDYOGI_BETA1 = 0.9  # FedYogi momentum parameter (first moment decay)
 FEDYOGI_BETA2 = 0.99  # FedYogi second moment parameter (velocity decay)
 FEDYOGI_TAU = 1e-2  # FedYogi numerical stability constant (larger for deep networks)
+MOON_MU = 1.0  # MOON: weight of the model-contrastive loss term
+MOON_TEMPERATURE = 0.5  # MOON: temperature for the contrastive loss
 BULYAN_NUM_MALICIOUS = 1  # Bulyan: number of Byzantine/malicious clients to tolerate
 BULYAN_TO_KEEP = None  # Bulyan: number of clients to keep (None = auto)
 FEDAGAIN_EPSILON = 1e-6  # FedAgain: small constant for numerical stability in trust weight
