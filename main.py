@@ -26,6 +26,24 @@ val_loaders = None
 test_loader = None
 dataset_info = None
 
+# FedBN: indices (in state_dict order) of BatchNorm parameters that are kept
+# local per client, and the per-client BatchNorm state persisted across rounds.
+bn_param_indices = None
+client_bn_state = {}
+
+
+def compute_bn_param_indices(model):
+    """Return state_dict positions of all BatchNorm parameters/buffers."""
+    keys = list(model.state_dict().keys())
+    bn_keys = set()
+    for name, module in model.named_modules():
+        if isinstance(module, torch.nn.modules.batchnorm._BatchNorm):
+            for pn, _ in module.named_parameters(recurse=False):
+                bn_keys.add(f"{name}.{pn}")
+            for bn, _ in module.named_buffers(recurse=False):
+                bn_keys.add(f"{name}.{bn}")
+    return [i for i, k in enumerate(keys) if k in bn_keys]
+
 
 class FederatedClient:
     """Simple federated client for local training and evaluation."""
@@ -62,6 +80,14 @@ class FederatedClient:
     
     def fit(self, parameters, config_dict):
         """Train the model on local data."""
+        # FedBN: substitute this client's own BatchNorm parameters (local BN);
+        # only the non-BN parameters are shared/aggregated across clients.
+        if config.STRATEGY == "FedBN" and bn_param_indices:
+            parameters = list(parameters)
+            stored = client_bn_state.get(self.cid)
+            if stored is not None:
+                for idx, val in zip(bn_param_indices, stored):
+                    parameters[idx] = val
         self.set_parameters(parameters)
         
         # Compute benchmark error on incoming global model (for FedAgain)
@@ -91,6 +117,11 @@ class FederatedClient:
         
         print(f"  Client {int(self.cid) + 1}: Loss={train_loss:.4f}, Accuracy={train_acc:.4f}, BenchErr={benchmark_error:.4f}")
         
+        # FedBN: remember this client's BatchNorm parameters for the next round.
+        if config.STRATEGY == "FedBN" and bn_param_indices:
+            full = self.get_parameters(config_dict={})
+            client_bn_state[self.cid] = [full[idx] for idx in bn_param_indices]
+
         # Return parameters with benchmark error in metrics
         metrics = {"benchmark_error": benchmark_error} if config.STRATEGY == "FedAgain" else {}
         return self.get_parameters(config_dict={}), len(self.trainloader.dataset), metrics
@@ -273,7 +304,17 @@ if __name__ == "__main__":
         print(f"  - FedAgain trust mode: {trust_mode}"
               + (f" (alpha={alpha}, beta={beta})"
                  if trust_mode == "weighted_additive" else ""))
-    
+    elif config.STRATEGY == "FedBN":
+        adapt_small = dataset_info['input_size'] < 64
+        _tmp = get_model(num_classes=dataset_info['num_classes'],
+                         num_channels=dataset_info['num_channels'],
+                         use_pretrained=config.USE_PRETRAINED,
+                         model_name=config.MODEL_NAME,
+                         adapt_for_small_images=adapt_small)
+        bn_param_indices = compute_bn_param_indices(_tmp)
+        del _tmp
+        print(f"  - FedBN: {len(bn_param_indices)} BatchNorm tensors kept local per client")
+
     print("\n" + "=" * 70)
     print(f"Starting Federated Learning with {config.STRATEGY}...")
     print("=" * 70)
