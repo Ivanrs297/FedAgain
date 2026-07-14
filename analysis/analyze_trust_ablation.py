@@ -239,11 +239,72 @@ def write_report(agg, supp_rows):
     open(os.path.join(OUT, "REPORT.md"), "w").write("\n".join(lines) + "\n")
 
 
+def trust_evolution():
+    """Per-round benign/corrupted trust-weight separation ratio, per mode.
+
+    Shows that the multiplicative FedAgain rule progressively isolates corrupted
+    clients over rounds, reaching the strongest separation (directly answers the
+    'trust scores over rounds' request).
+    """
+    corr = corrupted_ids(44)
+    files = glob.glob(os.path.join(RES, "trust_scores", "*.csv"))
+    pat = re.compile(r"trust_(.+?)_non-iid-label_(.+?)_c\d+_r\d+\.csv$")
+    # (ds,mode) -> round -> {'b':[], 'c':[]}
+    data = defaultdict(lambda: defaultdict(lambda: {"b": [], "c": []}))
+    for f in files:
+        m = pat.search(os.path.basename(f))
+        if not m:
+            continue
+        ds, mode = m.group(1), m.group(2)
+        for row in csv.DictReader(open(f)):
+            r = int(row["round"]); t = float(row["trust_normalized"])
+            data[(ds, mode)][r]["c" if int(row["client"]) in corr else "b"].append(t)
+
+    datasets = sorted({k[0] for k in data})
+    order = ["combined_mult", "benchmark_only", "additive", "divergence_only"]
+    style = {  # FedAgain (multiplicative) emphasized
+        "combined_mult": dict(color="#d62728", lw=2.6, marker="o", ms=4, zorder=5),
+        "benchmark_only": dict(color="#1f77b4", lw=1.4, marker="s", ms=3, ls="--"),
+        "additive": dict(color="#7f7f7f", lw=1.2, marker="^", ms=3, ls=":"),
+        "divergence_only": dict(color="#bcbd22", lw=1.2, marker="v", ms=3, ls=":"),
+    }
+    label = {"combined_mult": "FedAgain ($E_kD_k$, mult.)", "benchmark_only": "$E_k$ only",
+             "additive": "$E_k{+}D_k$ (add.)", "divergence_only": "$D_k$ only"}
+
+    fig, axes = plt.subplots(1, len(datasets), figsize=(5 * len(datasets), 4),
+                             squeeze=False)
+    for j, ds in enumerate(datasets):
+        ax = axes[0][j]
+        for mode in order:
+            d = data.get((ds, mode))
+            if not d:
+                continue
+            xs = sorted(d)
+            ys = []
+            for r in xs:
+                b = np.mean(d[r]["b"]) if d[r]["b"] else np.nan
+                c = np.mean(d[r]["c"]) if d[r]["c"] else np.nan
+                ys.append(b / c if c else np.nan)
+            ax.plot(xs, ys, label=label[mode], **style[mode])
+        ax.axhline(1.0, color="k", lw=0.6, alpha=0.5)
+        ax.set_yscale("log")
+        ax.set_title(ds); ax.set_xlabel("round")
+        ax.set_ylabel("benign / corrupted trust ratio")
+        ax.grid(alpha=0.3, which="both")
+    axes[0][0].legend(fontsize=8, loc="upper left")
+    fig.suptitle("Progressive down-weighting of corrupted clients over rounds "
+                 "(higher = stronger isolation; log scale)")
+    fig.tight_layout()
+    fig.savefig(os.path.join(OUT, "trust_evolution.png"), dpi=130)
+    plt.close(fig)
+
+
 def main():
     rows = load_ledger()
     agg, datasets, base_modes = table_accuracy(rows)
     convergence(rows, datasets, base_modes)
     supp = trust_distribution()
+    trust_evolution()
     write_report(agg, supp)
     print(f"[analysis] wrote outputs to {OUT}")
     for f in sorted(os.listdir(OUT)):
