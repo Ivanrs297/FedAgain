@@ -12,16 +12,17 @@ framing + general fixes (🔵). Baselines FedBN/Scaffold/MOON implemented.
 
 ## Phase 1 — Finish the baseline comparison (this week)
 
-### 1.1 🔄 Baseline table  [R1.5] — *sweep running (~8h)*
-- **When sweep done:** `git checkout config.py`; verify 96 runs in
-  `results/experiment_ledger.csv`.
-- **New:** `analysis/analyze_baselines.py` → per-dataset table of {acc, F1, std}
-  for FedAgain vs FedAvg/FedProx/FedMedian/Bulyan/FedBN/Scaffold/MOON; bold best
-  per dataset; a grouped-bar figure. Reuse patterns from `analyze_trust_ablation.py`.
-- **Paper:** add a `\begin{table*}` (blue) in the results section + 1–2 paragraphs;
-  copy any figure into `src-paper/`. Honest framing: FedAgain best/competitive on
-  the clinical datasets, especially under corruption + heterogeneity.
-- Effort: ~half day (mostly analysis + writing).
+### 1.1 ✅ Baseline table  [R1.5] — *DONE (sweep 96/96, committed b3114b2)*
+- Sweep finished 2026-07-14 20:39 (96/96). `analysis/analyze_baselines.py` →
+  `results/baselines/{baseline_table.tex, baseline_summary.csv, baseline_comparison.png}`.
+- **Paper:** new subsection `subsec:extended_baselines` (blue) with
+  `tab:baseline_comparison` + `fig:baseline_comparison`; FedBN/SCAFFOLD/MOON added
+  to the compared-strategies list; 3 refs added to `biblio.bib`.
+- **Result (honest):** FedMedian best in mean (74.9%, rank 1.25); FedAgain 2nd
+  (73.7%, rank 2.0) — top-2 on every dataset, best on CIFAR-10, beats
+  FedBN/SCAFFOLD/MOON on all clinical sets. Framing: no need to know #corrupted,
+  retains all clients, interpretable trust weights.
+- **Overleaf to sync:** `baseline_comparison.png`, `biblio.bib`, the `.tex`.
 
 ### 1.2 ⬜ Rare/hard-client bias  [R2.2] 🟣 — *no new runs needed*
 - Reuse `results/trust_scores/`: tag a client that holds a rare/minority class,
