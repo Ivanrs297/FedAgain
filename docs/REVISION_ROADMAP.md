@@ -24,14 +24,16 @@ framing + general fixes (🔵). Baselines FedBN/Scaffold/MOON implemented.
   retains all clients, interpretable trust weights.
 - **Overleaf to sync:** `baseline_comparison.png`, `biblio.bib`, the `.tex`.
 
-### 1.2 ⬜ Rare/hard-client bias  [R2.2] 🟣 — *no new runs needed*
-- Reuse `results/trust_scores/`: tag a client that holds a rare/minority class,
-  track its trust weight over rounds vs. a corrupted client and typical clients.
-- May need one tagged config (one client = rare class) with `FEDAGAIN_LOG_TRUST`.
-- **Paper:** short subsection + figure showing FedAgain does not unfairly suppress
-  legitimate rare-distribution clients (or, if it does, discuss the fairness
-  trade-off honestly).
-- Effort: ~half day.
+### 1.2 ✅ Rare/hard-client bias  [R2.2] 🟣 — *DONE (committed a3f435d)*
+- `analysis/analyze_rare_client_bias.py` reconstructs corrupted/benign status +
+  intrinsic difficulty (benchmark error) deterministically (seed 44, ρ=0.3) and
+  joins with `results/trust_scores/` logs. No new runs (CPU-only reconstruction).
+- **Finding (honest):** corrupted → trust $0.045$ (<½ of uniform $1/K$); legitimate
+  hard/rare clients → $0.105$ (≈uniform, $2.3\times$ above corrupted) on every
+  dataset. Mild difficulty gradient (hard $0.105$ vs easy $0.137$) disclosed; not
+  worsened by the multiplicative rule. FedAgain suppresses corruption, not rarity.
+- **Paper:** subsection `subsec:rare_client_bias` (violet R2) + `fig:rare_client_bias`.
+- **Overleaf to sync:** `rare_client_bias.png`.
 
 ---
 
