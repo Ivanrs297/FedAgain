@@ -64,44 +64,67 @@ and (B) the **PyTorch experiment codebase**. This file is the resume point.
   per-round evolution figures. Data from the 66-run sweep. 🔵
 - Framing/title/RQ; general fixes (FL acronym, ρ 0.5→0.4, seven→sub-datasets,
   Bulyan cite). 🔵
+- R1.5 **extended-baseline table** (FedAgain vs 7 baselines incl. FedBN/Scaffold/
+  MOON): `subsec:extended_baselines`, `tab:baseline_comparison`,
+  `fig:baseline_comparison`. FedAgain top-2 on every dataset, best on CIFAR-10;
+  FedMedian strongest in mean (74.9 vs 73.7). Data = the 96-run baseline sweep. 🔵
+- R2.2 **rare/hard-client bias**: `subsec:rare_client_bias`, `fig:rare_client_bias`.
+  Corrupted trust 0.045 (<½ uniform) vs benign-hard 0.105 (≈uniform, 2.3× above
+  corrupted) → suppresses corruption, not rarity. `analyze_rare_client_bias.py`. 🟣
+- R1.1a **novelty vs other trust/reputation FL**: `subsec:trust_positioning` +
+  `tab:trust_positioning` (vs Krum/Bulyan, FedMedian, FLTrust, FoolsGold, Kang).
+  4 refs added to `biblio.bib`. 🟢
+- R1.8 **code release + overhead**: `subsec:overhead`. Measured +38% wall-clock
+  vs FedAvg (benchmark inference pass; ℓ2 negligible; no comm. overhead) via
+  `analyze_overhead.py`; GitHub release + data-availability statement. 🟢
+- R1.7 **de-emphasis of MNIST/CIFAR** as sanity checks (abstract + benchmark
+  subsection reframed; clinical datasets foregrounded). 🟢
 
-**In progress:** baseline sweep (R1.5) — see below.
+**In progress:** corruption-envelope sweep (ρ 0.1/0.4) — see below → then the
+robustness-curve analysis (honest lever: does FedAgain degrade least?).
 
 **Pending:**
-- R1.5 (partly) / **R2.4** — RFLPA, BOBA, RAHFL baselines (and FedDyn for R1.5).
-- R2.2 — bias against rare/shifted-distribution clients (analysis; reuse trust logs).
-- R1.1a — novelty vs. other trust-aware/reputation FL methods (not just previous FedAgain).
+- **R2.4** — RFLPA, BOBA, RAHFL baselines (and FedDyn for R1.5). Biggest chunk.
 - R1.3/R2.3 — a real adversarial attack (label-flipping/poisoning).
 - R1.1c/R1.2 — formal convergence/robustness theory.
-- R1.8 — code/data release statement + trust-weighting overhead discussion.
-- R1.7 — reduce MNIST/CIFAR emphasis toward clinical.
+- **Response-to-reviewers letter** (Phase 6) + final Overleaf compile.
+- Overleaf sync pending: `FedAgain_classification.tex`, `biblio.bib` (7 new refs),
+  `baseline_comparison.png`, `rare_client_bias.png`.
 
-## Currently running (as of 2026-07-14 ~14:22)
+## Currently running (as of 2026-07-15 ~11:50)
 
-Detached baseline sweep (`scripts/run_baseline_sweep.sh`, via `setsid`):
-FedAgain vs FedAvg/FedProx/FedMedian/Bulyan/FedBN/Scaffold/MOON ×
-{DAUDON_MIX, JONATHAN_MIX, MYSTONE, CIFAR10} × non-iid-label, ρ=0.3, sev=3 ×
-seeds 42/43/44 = **96 runs (~8 h, done late tonight)**.
+The ρ=0.3 baseline sweep **finished** (96/96, `analyze_baselines.py` → table +
+figure, done). Now running: detached **corruption-envelope sweep**
+(`scripts/run_envelope_sweep.sh`, via `setsid`) — same 8 strategies ×
+{DAUDON_MIX, JONATHAN_MIX, MYSTONE, CIFAR10} × non-iid-label, sev=3 ×
+seeds 42/43/44, at **ρ ∈ {0.1, 0.4}** (0.3 already done) = **192 runs (~13 h)**.
+Together the three ρ points give a degradation curve per method (the honest
+robustness lever for FedAgain). Ledger goes 96 → 288.
 
 ```bash
 # monitor
 pgrep -c -f run_baselines                                 # alive?
-expr $(wc -l < results/experiment_ledger.csv) - 1         # completed / 96
-tail -1 results/logs/baseline_sweep_*.log
+expr $(wc -l < results/experiment_ledger.csv) - 1         # completed / 288
+tail -1 results/logs/envelope_sweep_*.log
 # resume if it died (skips completed):
-setsid bash scripts/run_baseline_sweep.sh </dev/null >results/logs/baselines.out 2>&1 &
+setsid bash scripts/run_envelope_sweep.sh </dev/null >results/logs/envelope.out 2>&1 &
 # stop:
-pkill -f run_baseline_sweep; pkill -f run_baselines
+pkill -f run_envelope_sweep; pkill -f run_baselines
 ```
 
 ## Next steps (tomorrow)
 
-1. When the baseline sweep finishes: build the **FedAgain-vs-baselines table**
-   (acc/F1/variance per dataset) from `results/experiment_ledger.csv`, add to the
-   paper (blue = common, since R1.5/R2.4). Extend `analysis/analyze_trust_ablation.py`
-   or add an `analysis/analyze_baselines.py`. Then `git checkout config.py`.
-2. Optionally implement FedDyn / R2.4 methods (RFLPA/BOBA/RAHFL) — more specialized.
-3. R2.2 rare-class bias analysis (reuse the trust-score logs).
+1. When the envelope sweep finishes: `git checkout config.py`; verify 288 runs.
+   Build the **corruption-degradation curve** (accuracy vs ρ per method + slope +
+   envelope-average) — extend `analysis/analyze_baselines.py`. If FedAgain
+   degrades least, add curve figure + paragraph (blue). If not, keep the honest
+   angle (no #corrupt prior, retains all clients, interpretable trust).
+2. **R2.4** — implement RFLPA / BOBA / RAHFL (+ optional FedDyn) as strategies
+   (pattern: `src/strategies/` + `train_*` in `src/client.py` + dispatch in
+   `main.py`; verify on MNIST first — Scaffold-style divergence gotcha). Fold
+   into the baseline table.
+3. **Response-to-reviewers letter** (point-by-point, referencing the coloured
+   changes) — Phase 6 deliverable.
 
 ## Git / conventions
 

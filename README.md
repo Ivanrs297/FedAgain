@@ -8,7 +8,7 @@ A simple and extensible federated learning project using PyTorch with CUDA suppo
 - **Deep Learning**: PyTorch with CUDA support
 - **Model**: ResNet18 with ImageNet pretrained weights
 - **Datasets**: EMNIST, MNIST, CIFAR10 (easily extensible)
-- **Strategies**: FedAvg, FedProx, FedAdam, FedMedian, Bulyan, FedAgain (custom)
+- **Strategies**: FedAvg, FedProx, FedYogi, FedMedian, Bulyan, FedBN, Scaffold, MOON, FedAgain (custom)
 - **Simple**: Clean manual implementation, easy to understand and modify
 
 ## Project Structure
@@ -28,9 +28,14 @@ A simple and extensible federated learning project using PyTorch with CUDA suppo
 ├── scripts/                # Experiment runners (run from repo root)
 │   ├── run_trust_ablation.py   # #2/#3 trust ablation sweep
 │   ├── run_baselines.py        # FedAgain vs baselines sweep
-│   ├── run_baseline_sweep.sh   # detached baseline comparison
+│   ├── run_baseline_sweep.sh   # detached baseline comparison (ρ=0.3)
+│   ├── run_envelope_sweep.sh   # detached corruption-envelope sweep (ρ=0.1/0.4)
 │   └── run_*.py                # other batch runners
 ├── analysis/               # Analysis & plotting (analyze_*, visualize_*)
+│   ├── analyze_baselines.py         # extended-baseline table + figure (R1.5)
+│   ├── analyze_rare_client_bias.py  # rare/hard-client trust fairness (R2.2)
+│   ├── analyze_overhead.py          # trust-weighting wall-clock overhead (R1.8)
+│   └── analyze_trust_ablation.py    # trust-formulation ablation (#2/#3)
 ├── tests/                  # Unit tests (test_trust, test_tracking, ...)
 ├── docs/                   # Guides + EXPERIMENT_PLAN.md (reviewer mapping)
 ├── results/                # Experiment outputs (see below)
@@ -206,6 +211,9 @@ All strategies are **fully implemented** manually (no Flower/Ray dependencies):
 - **FedYogi**: Full server-side Yogi optimization with sign-based velocity update `v = v - (1-β₂)Δ²sign(v-Δ²)` - uses very conservative learning rate (0.001) and gradient clipping for deep network stability
 - **FedMedian**: Coordinate-wise median aggregation - robust to outliers and malicious clients
 - **Bulyan**: Byzantine-robust - removes `f` furthest outliers from median, then averages remaining clients
+- **FedBN**: Keeps each client's BatchNorm parameters local (state in `client_bn_state`); only non-BN weights are aggregated
+- **Scaffold**: Server/client control variates correct client drift; **uses plain SGD** (momentum breaks the control-variate estimate → divergence)
+- **MOON**: Adds a model-contrastive loss aligning each client's representation with the global model vs. its previous local model (`train_moon`)
 - **FedAgain**: Trust-based weighting - clients weighted by `T_k = 1/(E_k×D_k+ε)` where `E_k` is benchmark error and `D_k` is parameter divergence
 
 ## Adding New Datasets
