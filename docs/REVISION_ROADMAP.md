@@ -43,10 +43,15 @@ framing + general fixes (🔵). Baselines FedBN/Scaffold/MOON implemented.
 - Add a short related-work paragraph/table contrasting FedAgain with existing
   trust/reputation FL (beyond the previous FedAgain, which is R2.1).
 
-### 2.2 ⬜ Code/data release + overhead  [R1.8] 🟢
-- State the code will be released (repo already exists). Add the trust-weighting
-  **overhead**: only a validation loss + one ℓ2 norm per client per round —
-  measure wall-clock delta FedAgain vs FedAvg from the ledger and report it.
+### 2.2 ✅ Code/data release + overhead  [R1.8] 🟢 — *DONE (committed 84d528b)*
+- `analysis/analyze_overhead.py` from the ledger: FedAgain 281s/run vs FedAvg
+  204s = **+38%** (~+7.7s/round), from the per-client benchmark inference pass
+  (ℓ2 negligible; no communication overhead). Comparable to MOON (+42%), above
+  FedMedian (+7%)/Bulyan (+9%). **Honest**: not "negligible" as first assumed.
+- **Paper:** subsection `subsec:overhead` (green R1) — measured overhead + code
+  release (github.com/Ivanrs297/FedAgain) + data-availability statement (private
+  kidney datasets not redistributable). Cross-linked from clinical-deployment §.
+- No Overleaf figures to sync (text only); just the `.tex`.
 
 ### 2.3 ⬜ Reduce MNIST/CIFAR emphasis  [R1.7] 🟢
 - Reframe MNIST/CIFAR as sanity checks; move clinical results forward; trim.
