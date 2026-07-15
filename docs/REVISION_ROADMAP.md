@@ -39,9 +39,15 @@ framing + general fixes (🔵). Baselines FedBN/Scaffold/MOON implemented.
 
 ## Phase 2 — Quick writing items (parallel, low risk)
 
-### 2.1 ⬜ Novelty vs. other trust-aware/reputation FL  [R1.1a] 🟢
-- Add a short related-work paragraph/table contrasting FedAgain with existing
-  trust/reputation FL (beyond the previous FedAgain, which is R2.1).
+### 2.1 ✅ Novelty vs. other trust-aware/reputation FL  [R1.1a] 🟢 — *DONE*
+- Paper: subsection `subsec:trust_positioning` (green R1) + comparison table
+  `tab:trust_positioning` contrasting FedAgain vs Krum/Bulyan, FedMedian, FLTrust,
+  FoolsGold, and reputation/blockchain FL (Kang) across 4 axes: dual signal,
+  no clean root data, no #corrupt prior / no extra infra, different threat model
+  (data corruption vs Byzantine/sybil poisoning). 4 refs added to `biblio.bib`
+  (blanchard2017machine, cao2021fltrust, fung2020limitations, kang2019reliable;
+  verified via web search). Filled the pre-existing inline TODO at old line ~334.
+- **Overleaf to sync:** `biblio.bib`, the `.tex` (no new figures).
 
 ### 2.2 ✅ Code/data release + overhead  [R1.8] 🟢 — *DONE (committed 84d528b)*
 - `analysis/analyze_overhead.py` from the ledger: FedAgain 281s/run vs FedAvg
