@@ -59,10 +59,14 @@ framing + general fixes (🔵). Baselines FedBN/Scaffold/MOON implemented.
   kidney datasets not redistributable). Cross-linked from clinical-deployment §.
 - No Overleaf figures to sync (text only); just the `.tex`.
 
-### 2.3 ⬜ Reduce MNIST/CIFAR emphasis  [R1.7] 🟢
-- Reframe MNIST/CIFAR as sanity checks; move clinical results forward; trim.
+### 2.3 ✅ Reduce MNIST/CIFAR emphasis  [R1.7] 🟢 — *DONE*
+- Reframed (green R1) in 3 high-visibility spots: abstract (kidney-stone datasets
+  foregrounded, MNIST/CIFAR "used only as sanity checks"); Benchmark-Validation
+  intro ("secondary check that complements—not replaces—the clinical evaluation");
+  closing of that subsection ("primary evaluation target ... medical results given
+  precedence"). No content deleted, no restructuring. Text-only (no Overleaf figs).
 
-*Effort for 2.1–2.3: ~1 day total (writing).*
+*Effort for 2.1–2.3: DONE (writing).*
 
 ---
 
