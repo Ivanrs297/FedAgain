@@ -152,6 +152,58 @@ def train_scaffold(net, trainloader, epochs, device, lr, momentum,
     return total_loss / len(trainloader), correct / total, new_c_local, delta_c
 
 
+def train_feddyn(net, trainloader, epochs, device, lr, momentum,
+                 g_local, server_params, alpha, clip=10.0):
+    """FedDyn: local training with dynamic regularization (Acar et al., ICLR 2021).
+
+    Solves  argmin_theta  L_k(theta) - <g_k, theta> + (alpha/2)||theta - theta_srv||^2
+    by adding the regularizer gradient  (-g_k + alpha*(theta - theta_srv))  to the
+    data gradient at every step. Unlike SCAFFOLD, the correction is a genuine loss
+    gradient, so SGD+momentum is safe.
+
+    Args:
+        g_local: dict {param_name: tensor} -- the client's persisted gradient state
+            ``\\nabla L_k(theta_k)`` (init to zeros on the first round).
+        server_params: dict {param_name: tensor} -- the broadcast global model
+            ``theta_srv`` (kept fixed during local training).
+        alpha: dynamic-regularization coefficient.
+        clip: gradient-norm clip (0/None disables).
+
+    Returns:
+        (avg_loss, accuracy, new_g_local) where
+        ``new_g_local[name] = g_local[name] - alpha*(theta_k - theta_srv)``.
+    """
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=momentum)
+    net.train()
+
+    total_loss, correct, total = 0.0, 0, 0
+    for _ in range(epochs):
+        for images, labels in trainloader:
+            images, labels = images.to(device), labels.to(device)
+            optimizer.zero_grad()
+            outputs = net(images)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            # FedDyn regularizer gradient:  -g_k + alpha*(theta - theta_srv)
+            for n, p in net.named_parameters():
+                if p.grad is not None:
+                    p.grad.data += alpha * (p.detach() - server_params[n]) - g_local[n]
+            if clip:
+                torch.nn.utils.clip_grad_norm_(net.parameters(), clip)
+            optimizer.step()
+            total_loss += loss.item()
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    # State update:  g_k <- g_k - alpha*(theta_k - theta_srv)
+    new_g_local = {}
+    for n, p in net.named_parameters():
+        new_g_local[n] = g_local[n] - alpha * (p.detach() - server_params[n])
+    return total_loss / len(trainloader), correct / total, new_g_local
+
+
 def test(net, testloader, device):
     """Validate the model on the test set."""
     criterion = nn.CrossEntropyLoss()

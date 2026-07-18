@@ -1,7 +1,8 @@
 """
 Federated learning with multiple aggregation strategies.
 Simple implementation without Ray/TensorFlow dependencies.
-Supports FedAvg, FedProx, FedAdam, FedMedian, Bulyan, and FedAgain.
+Supports FedAvg, FedProx, FedYogi, FedMedian, Bulyan, FedBN, Scaffold, MOON,
+FedDyn, RFLPA, BOBA, and FedAgain.
 """
 
 import os
@@ -12,7 +13,7 @@ import torch
 from collections import OrderedDict
 from src.model import get_model
 from src.dataset import load_data
-from src.client import train, test, train_moon, train_scaffold
+from src.client import train, test, train_moon, train_scaffold, train_feddyn
 from src.strategies.fedagain import FedAgainStrategy, compute_benchmark_error
 from src.logger import ExperimentLogger, compute_classification_metrics
 from src.tracking import ExperimentTracker
@@ -40,6 +41,12 @@ scaffold_c_global = None
 scaffold_c_local_state = {}
 scaffold_round_deltas = []
 
+# FedDyn: per-client persisted gradient state g_k {name: tensor} and the server
+# drift accumulator h {name: tensor}; both init lazily to zeros (Acar et al.).
+feddyn_g_local = {}
+feddyn_h = None
+feddyn_trainable_idx = None
+
 
 def compute_bn_param_indices(model):
     """Return state_dict positions of all BatchNorm parameters/buffers."""
@@ -52,6 +59,119 @@ def compute_bn_param_indices(model):
             for bn, _ in module.named_buffers(recurse=False):
                 bn_keys.add(f"{name}.{bn}")
     return [i for i, k in enumerate(keys) if k in bn_keys]
+
+
+def compute_trainable_param_indices(model):
+    """Return the set of state_dict positions that are trainable parameters
+    (i.e. in named_parameters, excluding buffers like BN running stats).
+
+    FedDyn's dynamic regularizer and drift accumulator act on trainable
+    parameters only; non-parameter buffers are averaged plainly (FedAvg-style).
+    """
+    keys = list(model.state_dict().keys())
+    param_names = {n for n, _ in model.named_parameters()}
+    return {i for i, k in enumerate(keys) if k in param_names}
+
+
+def compute_server_reference_update(global_params, ref_model, root_loader,
+                                    device, lr, momentum, target_steps):
+    """Train ``ref_model`` from ``global_params`` on the clean server root set for
+    ``target_steps`` SGD steps (cycling the small root loader) and return the
+    server reference update ``g0 = w_ref - w_global`` (list of arrays).
+
+    Used by RFLPA (= FLTrust defense core): the reference direction against which
+    client updates are scored by ReLU'd cosine similarity. FLTrust assumes the
+    server performs comparable local computation to the clients, so the number of
+    optimizer STEPS is matched to a client's (not the number of epochs) -- the
+    small root set otherwise yields a tiny-magnitude update and the norm-clipped
+    aggregate barely moves the global model.
+    """
+    import torch.nn as nn
+    keys = list(ref_model.state_dict().keys())
+    state = OrderedDict({k: torch.tensor(v) for k, v in zip(keys, global_params)})
+    ref_model.load_state_dict(state, strict=True)
+    ref_model.to(device)
+    ref_model.train()
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(ref_model.parameters(), lr=lr, momentum=momentum)
+    steps = 0
+    while steps < target_steps:
+        for images, labels in root_loader:
+            if steps >= target_steps:
+                break
+            images, labels = images.to(device), labels.to(device)
+            optimizer.zero_grad()
+            loss = criterion(ref_model(images), labels)
+            loss.backward()
+            optimizer.step()
+            steps += 1
+    ref_params = [p.detach().cpu().numpy() for p in ref_model.state_dict().values()]
+    return [ref_params[i] - global_params[i] for i in range(len(global_params))]
+
+
+def boba_aggregate(G, S, f, c, pmin=-0.5, max_iter=20):
+    """BOBA server aggregation (Bao et al., AISTATS 2024).
+
+    Byzantine-robust and unbiased under label skew. Honest client updates lie near
+    the (c-1)-dim affine "honest simplex" spanned by the c per-class server
+    vertices. Stage 1 robustly fits that subspace (trimmed truncated-SVD); stage 2
+    filters clients whose barycentric coordinates fall off the simplex, then
+    averages the projected survivors.
+
+    Args:
+        G: (n, d) client update/param vectors.
+        S: (c, d) server per-class vertex vectors.
+        f: Byzantine budget (upper bound); trims f, keeps n-f.
+        c: number of classes.
+        pmin: reject client if min_z barycentric coord < pmin (<= 0).
+        max_iter: stage-1 alternating-minimization iterations.
+
+    Returns:
+        (mu, info) where mu is the (d,) aggregate and info is a small dict for logging.
+    """
+    from sklearn.decomposition import PCA
+    n = G.shape[0]
+    # Structural feasibility clamps: need >= c kept points to fit a (c-1)-dim
+    # affine subspace. With few clients relative to classes (n <= c, e.g. 10
+    # clients on CIFAR-10) trimming is disabled and the subspace dim is reduced.
+    f = int(max(0, min(f, n - c)))
+    k = n - f
+    ncomp = int(min(c - 1, k - 1))
+    if ncomp < 1:
+        # Degenerate (too few clients/classes) -> fall back to plain mean.
+        return G.mean(axis=0), {"kept": n, "ncomp": 0, "degenerate": True}
+
+    pca = PCA(n_components=ncomp)
+    # ---- Stage 1: robust affine-subspace fitting ----
+    pca.fit(S)
+    kept = np.arange(n)
+    for _ in range(max_iter):
+        Z = pca.transform(G)
+        rec = pca.inverse_transform(Z)
+        res = ((G - rec) ** 2).sum(axis=1)
+        new = np.argsort(res)[:k]
+        if set(new.tolist()) == set(kept.tolist()):
+            kept = new
+            break
+        kept = new
+        pca.fit(G[kept])
+
+    # ---- Stage 2: barycentric filter on the honest simplex ----
+    Zg = pca.transform(G)                      # (n, ncomp)
+    Zs = pca.transform(S)                      # (c, ncomp)
+    Zg1 = np.concatenate([Zg, np.ones((n, 1))], axis=1)   # (n, ncomp+1)
+    Zs1 = np.concatenate([Zs, np.ones((c, 1))], axis=1)   # (c, ncomp+1)
+    P = Zg1 @ np.linalg.pinv(Zs1)              # (n, c) barycentric coords
+    low = P.min(axis=1)                        # min_z p_iz
+    order = np.argsort(low)
+    if low[order[-k]] > pmin:                  # enough clients clear the threshold
+        sel = np.where(low >= pmin)[0]
+    else:                                      # fallback: top-k by min-coord
+        sel = order[-k:]
+
+    mu_latent = Zg[sel].mean(axis=0)
+    mu = pca.inverse_transform(mu_latent[None, :])[0]
+    return mu, {"kept": int(len(sel)), "ncomp": ncomp, "f": f, "degenerate": False}
 
 
 class FederatedClient:
@@ -139,6 +259,19 @@ class FederatedClient:
                 config.LEARNING_RATE, config.MOMENTUM, c_global, c_local)
             scaffold_c_local_state[self.cid] = new_c_local
             scaffold_round_deltas.append(delta_c)
+        elif config.STRATEGY == "FedDyn":
+            server_params = {n: p.detach().clone()
+                             for n, p in self.model.named_parameters()}
+            g_local = feddyn_g_local.get(self.cid)
+            if g_local is None:
+                g_local = {n: torch.zeros_like(p)
+                           for n, p in self.model.named_parameters()}
+            train_loss, train_acc, new_g_local = train_feddyn(
+                self.model, self.trainloader, config.LOCAL_EPOCHS, self.device,
+                config.LEARNING_RATE, config.MOMENTUM, g_local, server_params,
+                alpha=getattr(config, "FEDDYN_ALPHA", 0.1),
+                clip=getattr(config, "FEDDYN_CLIP", 10.0))
+            feddyn_g_local[self.cid] = new_g_local
         else:
             train_loss, train_acc = train(
                 self.model,
@@ -295,9 +428,11 @@ if __name__ == "__main__":
         classes_per_client=config.NON_IID_CLASSES_PER_CLIENT,
         dirichlet_alpha=config.DIRICHLET_ALPHA,
         seed=seed,
-        num_workers=getattr(config, "NUM_WORKERS", 0)
+        num_workers=getattr(config, "NUM_WORKERS", 0),
+        server_root_per_class=(getattr(config, "SERVER_ROOT_PER_CLASS", 20)
+                               if config.STRATEGY in ("RFLPA", "BOBA") else 0),
     )
-    
+
     print(f"\nDataset Information:")
     print(f"  - Classes: {dataset_info['num_classes']}")
     print(f"  - Channels: {dataset_info['num_channels']}")
@@ -355,6 +490,42 @@ if __name__ == "__main__":
         bn_param_indices = compute_bn_param_indices(_tmp)
         del _tmp
         print(f"  - FedBN: {len(bn_param_indices)} BatchNorm tensors kept local per client")
+    elif config.STRATEGY == "FedDyn":
+        adapt_small = dataset_info['input_size'] < 64
+        _tmp = get_model(num_classes=dataset_info['num_classes'],
+                         num_channels=dataset_info['num_channels'],
+                         use_pretrained=config.USE_PRETRAINED,
+                         model_name=config.MODEL_NAME,
+                         adapt_for_small_images=adapt_small)
+        feddyn_trainable_idx = compute_trainable_param_indices(_tmp)
+        del _tmp
+        print(f"  - FedDyn: alpha={getattr(config, 'FEDDYN_ALPHA', 0.1)}, "
+              f"{len(feddyn_trainable_idx)} trainable tensors (BN buffers averaged)")
+    elif config.STRATEGY in ("RFLPA", "BOBA"):
+        adapt_small = dataset_info['input_size'] < 64
+        server_ref_model = get_model(num_classes=dataset_info['num_classes'],
+                                     num_channels=dataset_info['num_channels'],
+                                     use_pretrained=config.USE_PRETRAINED,
+                                     model_name=config.MODEL_NAME,
+                                     adapt_for_small_images=adapt_small)
+        if dataset_info.get("server_root") is None:
+            raise RuntimeError(f"{config.STRATEGY} requires a server root set "
+                               f"(SERVER_ROOT_PER_CLASS>0).")
+        print(f"  - {config.STRATEGY}: server root "
+              f"{len(dataset_info['server_root']['dataset'])} samples")
+        if config.STRATEGY == "BOBA":
+            # Per-class root loaders for building the c simplex vertices each round.
+            from torch.utils.data import Subset, DataLoader as _DL
+            _root = dataset_info["server_root"]["dataset"]
+            _rlabels = dataset_info["server_root"]["labels"]
+            boba_class_loaders = []
+            for _z in range(dataset_info["num_classes"]):
+                _idx = np.where(_rlabels == _z)[0].tolist()
+                boba_class_loaders.append(_DL(Subset(_root, _idx),
+                                              batch_size=config.BATCH_SIZE, shuffle=True))
+            print(f"  - BOBA: f={getattr(config, 'BOBA_NUM_BYZ', 2)}, "
+                  f"{dataset_info['num_classes']} class vertices, "
+                  f"need n-f > c-1 ({config.NUM_CLIENTS}-f > {dataset_info['num_classes']-1})")
 
     print("\n" + "=" * 70)
     print(f"Starting Federated Learning with {config.STRATEGY}...")
@@ -511,7 +682,105 @@ if __name__ == "__main__":
                 new_params.append(new_param.astype(original_dtype))
             
             parameters = new_params
-            
+
+        elif config.STRATEGY == "FedDyn":
+            # FedDyn: theta = mean_active(theta_k) - (1/alpha)*h, with the server
+            # drift accumulator  h <- h - (alpha/m)*sum_active(theta_k - theta_srv).
+            # m = total clients (= |P_t| here, full participation). Applied to
+            # trainable params only; buffers (BN stats) are averaged plainly.
+            num_params = len(results[0][0])
+            m_total = config.NUM_CLIENTS
+            alpha = getattr(config, "FEDDYN_ALPHA", 0.1)
+            if feddyn_h is None:
+                feddyn_h = [np.zeros_like(p, dtype=np.float64) for p in parameters]
+
+            new_params = []
+            for i in range(num_params):
+                stack = np.stack([r[0][i] for r in results], axis=0)
+                mean_i = np.mean(stack, axis=0)
+                if i in feddyn_trainable_idx:
+                    drift = np.sum(stack - parameters[i], axis=0)  # sum_active(theta_k - theta_srv)
+                    feddyn_h[i] = feddyn_h[i] - (alpha / m_total) * drift
+                    new_i = mean_i - (1.0 / alpha) * feddyn_h[i]
+                    new_params.append(new_i.astype(parameters[i].dtype))
+                else:
+                    new_params.append(mean_i.astype(parameters[i].dtype))
+            parameters = new_params
+
+        elif config.STRATEGY == "RFLPA":
+            # RFLPA (= FLTrust defense core; secret-sharing omitted, accuracy-
+            # equivalent in exact arithmetic). Score client updates by ReLU'd
+            # cosine similarity to a server reference update g0 trained on the
+            # clean root set, norm-clip to ||g0||, then trust-weighted average.
+            eps = 1e-10
+            # Match the server's optimizer steps to an average client's so the
+            # reference-update magnitude is comparable (FLTrust assumption).
+            target_steps = max(1, int(np.mean([len(tl) for tl in train_loaders]))
+                               * config.LOCAL_EPOCHS)
+            g0 = compute_server_reference_update(
+                parameters, server_ref_model, dataset_info["server_root"]["loader"],
+                device, config.LEARNING_RATE, config.MOMENTUM, target_steps)
+            g0_flat = np.concatenate([a.ravel() for a in g0]).astype(np.float64)
+            g0_norm = float(np.linalg.norm(g0_flat)) + eps
+
+            num_params = len(parameters)
+            accum = [np.zeros_like(p, dtype=np.float64) for p in parameters]
+            ts_sum = 0.0
+            for r in results:
+                gi = [r[0][i] - parameters[i] for i in range(num_params)]
+                gi_flat = np.concatenate([a.ravel() for a in gi]).astype(np.float64)
+                gi_norm = float(np.linalg.norm(gi_flat)) + eps
+                cos = float(np.dot(gi_flat, g0_flat) / (gi_norm * g0_norm))
+                ts = max(0.0, cos)
+                if ts <= 0.0:
+                    continue
+                scale = ts * (g0_norm / gi_norm)  # trust * norm-clip factor
+                for i in range(num_params):
+                    accum[i] += scale * gi[i]
+                ts_sum += ts
+            if ts_sum < eps:
+                print("  [RFLPA] all clients suppressed (sum trust ~ 0); keeping global model")
+            else:
+                parameters = [(parameters[i] + accum[i] / ts_sum).astype(parameters[i].dtype)
+                              for i in range(num_params)]
+
+        elif config.STRATEGY == "BOBA":
+            # BOBA (Bao et al., AISTATS 2024): robust affine-subspace aggregation
+            # under label skew. Build c per-class server vertices, then fit the
+            # honest simplex and average the on-simplex client updates.
+            shapes = [p.shape for p in parameters]
+            dtypes = [p.dtype for p in parameters]
+
+            def _flat(lst):
+                return np.concatenate([a.ravel() for a in lst]).astype(np.float64)
+
+            def _unflat(vec):
+                out, off = [], 0
+                for sh, dt in zip(shapes, dtypes):
+                    size = int(np.prod(sh)) if sh else 1
+                    out.append(vec[off:off + size].reshape(sh).astype(dt))
+                    off += size
+                return out
+
+            c = dataset_info["num_classes"]
+            target_steps = max(1, int(np.mean([len(tl) for tl in train_loaders]))
+                               * config.LOCAL_EPOCHS)
+            # c simplex vertices: global model trained on each single-class root subset.
+            S = np.stack([_flat(compute_server_reference_update(
+                              parameters, server_ref_model, boba_class_loaders[z],
+                              device, config.LEARNING_RATE, config.MOMENTUM, target_steps))
+                          + _flat(parameters)  # vertex = w_global + class-z update
+                          for z in range(c)], axis=0)
+            G = np.stack([_flat(r[0]) for r in results], axis=0)
+            mu, info = boba_aggregate(
+                G, S, f=getattr(config, "BOBA_NUM_BYZ", 2), c=c,
+                pmin=getattr(config, "BOBA_PMIN", -0.5),
+                max_iter=getattr(config, "BOBA_MAX_ITER", 20))
+            print(f"  [BOBA] kept {info['kept']}/{len(results)} clients, "
+                  f"subspace dim {info['ncomp']}"
+                  + ("  (DEGENERATE -> mean)" if info.get("degenerate") else ""))
+            parameters = _unflat(mu)
+
         else:
             # FedAvg: weighted average (FedProx uses same aggregation, proximal term is in client training)
             total_examples = sum([result[1] for result in results])

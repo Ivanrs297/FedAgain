@@ -36,6 +36,15 @@ MOON_MU = 1.0  # MOON: weight of the model-contrastive loss term
 MOON_TEMPERATURE = 0.5  # MOON: temperature for the contrastive loss
 BULYAN_NUM_MALICIOUS = 1  # Bulyan: number of Byzantine/malicious clients to tolerate
 BULYAN_TO_KEEP = None  # Bulyan: number of clients to keep (None = auto)
+FEDDYN_ALPHA = 0.1  # FedDyn: dynamic-regularization coefficient alpha (Acar et al., ICLR 2021)
+FEDDYN_CLIP = 10.0  # FedDyn: gradient-norm clip for local training stability
+# Reference-based robust baselines (need a clean server root set; see load_data).
+SERVER_ROOT_PER_CLASS = 20  # samples/class carved for RFLPA/BOBA server reference (0=off)
+RFLPA_SERVER_EPOCHS = 1  # RFLPA/FLTrust: local epochs to train the server reference update
+# BOBA (Bao et al., AISTATS 2024): Byzantine-robust under label skew.
+BOBA_NUM_BYZ = 2  # f: Byzantine budget (trims f, keeps n-f); need n-f > num_classes-1
+BOBA_PMIN = -0.5  # reject client if min barycentric coord < pmin (must be <= 0)
+BOBA_MAX_ITER = 20  # stage-1 alternating-minimization iterations
 FEDAGAIN_EPSILON = 1e-6  # FedAgain: small constant for numerical stability in trust weight
 # FedAgain trust formulation (experiments #2 ablation and #3 sensitivity):
 #   "combined_mult"     -> T = 1/(E*D + eps)          (default)

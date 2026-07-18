@@ -792,11 +792,53 @@ def partition_data_non_iid_dirichlet(dataset, num_clients: int, alpha: float = 0
     return client_datasets
 
 
+def _extract_labels(dataset):
+    """Return an np.array of integer labels for a dataset (fast paths first)."""
+    if hasattr(dataset, 'targets'):
+        return np.array(dataset.targets)
+    if hasattr(dataset, 'labels'):
+        return np.array(dataset.labels)
+    return np.array([dataset[i][1] for i in range(len(dataset))])
+
+
+def carve_server_root(train_dataset, per_class, num_classes, seed):
+    """Carve a class-balanced clean server root set out of the training data.
+
+    Used by reference-based robust baselines (RFLPA/FLTrust, BOBA) that assume a
+    small clean labeled set on the server. The carved samples are REMOVED from the
+    pool used to build client partitions, so there is no client/server leakage.
+
+    Returns ``(remaining_subset, root_subset, root_labels)`` where
+    ``remaining_subset`` is a ``Subset`` with a ``.targets`` attribute set (so the
+    downstream partitioners keep their fast label path), ``root_subset`` is the
+    balanced server set, and ``root_labels`` are its integer labels (for building
+    per-class references, e.g. BOBA vertices).
+    """
+    from torch.utils.data import Subset
+    labels = _extract_labels(train_dataset)
+    rng = np.random.RandomState(seed)
+    root_idx, keep_idx = [], []
+    for c in range(num_classes):
+        idx_c = np.where(labels == c)[0]
+        rng.shuffle(idx_c)
+        take = min(per_class, len(idx_c))
+        root_idx.extend(idx_c[:take].tolist())
+        keep_idx.extend(idx_c[take:].tolist())
+    rng.shuffle(root_idx)
+    keep_idx = sorted(keep_idx)
+    remaining = Subset(train_dataset, keep_idx)
+    remaining.targets = [int(labels[i]) for i in keep_idx]  # keep partitioners fast
+    root_subset = Subset(train_dataset, root_idx)
+    root_labels = np.array([int(labels[i]) for i in root_idx])
+    return remaining, root_subset, root_labels
+
+
 def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: int = 32,
               distribution: str = "iid", classes_per_client: int = 2,
               dirichlet_alpha: float = 0.5,
               seed: int = 42,
-              num_workers: int = 0) -> Tuple[List[DataLoader], List[DataLoader], DataLoader, Dict]:
+              num_workers: int = 0,
+              server_root_per_class: int = 0) -> Tuple[List[DataLoader], List[DataLoader], DataLoader, Dict]:
     """
     Load and partition the specified dataset for federated learning.
     
@@ -813,7 +855,22 @@ def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: i
     """
     # Load dataset
     train_dataset, test_dataset, dataset_info = load_dataset(dataset_name)
-    
+
+    # Optionally carve a clean, class-balanced server root set (for reference-based
+    # robust baselines such as RFLPA/FLTrust and BOBA). Removed from the client pool.
+    server_root = None
+    if server_root_per_class and server_root_per_class > 0:
+        train_dataset, root_subset, root_labels = carve_server_root(
+            train_dataset, server_root_per_class, dataset_info["num_classes"], seed)
+        server_root = {
+            "loader": DataLoader(root_subset, batch_size=batch_size, shuffle=True,
+                                 num_workers=num_workers, pin_memory=True),
+            "dataset": root_subset,
+            "labels": root_labels,
+        }
+        print(f"  - Server root set: {len(root_subset)} samples "
+              f"({server_root_per_class}/class) carved out for reference-based defense")
+
     # Partition training data based on distribution type
     if distribution == "iid":
         print(f"  - Distribution: IID (random split)")
@@ -871,6 +928,8 @@ def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: i
     test_loader = DataLoader(
         test_dataset, batch_size=batch_size,
         num_workers=num_workers, pin_memory=True)
-    
+
+    dataset_info["server_root"] = server_root  # None unless server_root_per_class>0
+
     return train_loaders, val_loaders, test_loader, dataset_info
 

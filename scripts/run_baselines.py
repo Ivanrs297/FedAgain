@@ -24,7 +24,11 @@ CONFIG_PATH = ROOT / "config.py"
 MAIN_PATH = ROOT / "main.py"
 
 ALL_STRATEGIES = ["FedAvg", "FedProx", "FedMedian", "Bulyan",
-                  "FedBN", "Scaffold", "MOON", "FedAgain"]
+                  "FedBN", "Scaffold", "MOON", "FedAgain",
+                  # R2.4 recent robust baselines (FedDyn = R1.5). RFLPA/BOBA need a
+                  # server root set; BOBA needs num_clients-f > num_classes-1
+                  # (degenerate on CIFAR-10/MNIST with 10 clients, 10 classes).
+                  "FedDyn", "RFLPA", "BOBA"]
 
 
 def update_config(values: dict) -> None:
