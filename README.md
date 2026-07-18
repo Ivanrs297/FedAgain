@@ -2,6 +2,24 @@
 
 A simple and extensible federated learning project using PyTorch with CUDA support for image classification.
 
+## MedIA Revision Status (MEDIA-D-26-01276)
+
+This repo backs a *Medical Image Analysis* revision responding to two reviewers.
+Progress on the reviewer comments (full plan in `docs/REVISION_ROADMAP.md`; the
+paper marks each change with a `\revtag{Rx.y}` tag naming the comment it resolves):
+
+**Resolved (written in the paper):** R1.1a novelty vs trust/reputation FL · R1.1b/R2.5
+trust-score ablation (mult-vs-add) · R1.3/R1.6 robustness definition + condensation ·
+R1.4 clinical split/leakage · R1.5 extended baselines (FedBN/SCAFFOLD/MOON) + degradation
+curve · R1.7 MNIST/CIFAR de-emphasis · R1.8 code release + overhead · R2.1 novelty vs prior
+FedAgain · R2.2 rare/hard-client fairness.
+
+**In progress (code done, compute running):** R1.5/R2.4 high-corruption tail (ρ=0.5/0.6) ·
+R1.3/R2.3 label-flipping adversarial attack (auto-runs after the ρ sweep).
+
+**Next:** R2.4 recent baselines (RFLPA/BOBA/RAHFL + FedDyn) · R1.1c/R1.2 convergence +
+ε/(α,β) sensitivity · response-to-reviewers letter + Overleaf compile.
+
 ## Features
 
 - **Framework**: Pure PyTorch (no Flower/Ray/TensorFlow dependencies)
@@ -30,9 +48,13 @@ A simple and extensible federated learning project using PyTorch with CUDA suppo
 │   ├── run_baselines.py        # FedAgain vs baselines sweep
 │   ├── run_baseline_sweep.sh   # detached baseline comparison (ρ=0.3)
 │   ├── run_envelope_sweep.sh   # detached corruption-envelope sweep (ρ=0.1/0.4)
+│   ├── run_envelope_high.sh    # high-corruption tail sweep (ρ=0.5/0.6, R1.5/R2.4)
+│   ├── run_label_flip.{py,sh}  # label-flipping adversarial attack sweep (R1.3/R2.3)
+│   ├── watch_and_run_label_flip.sh # chains label-flip after the ρ sweep finishes
 │   └── run_*.py                # other batch runners
 ├── analysis/               # Analysis & plotting (analyze_*, visualize_*)
 │   ├── analyze_baselines.py         # extended-baseline table + figure (R1.5)
+│   ├── analyze_degradation_curve.py # corruption-degradation curves (R1.5/R2.4)
 │   ├── analyze_rare_client_bias.py  # rare/hard-client trust fairness (R2.2)
 │   ├── analyze_overhead.py          # trust-weighting wall-clock overhead (R1.8)
 │   └── analyze_trust_ablation.py    # trust-formulation ablation (#2/#3)
@@ -165,7 +187,21 @@ FEDADAM_TAU = 1e-3               # FedAdam epsilon/tau
 BULYAN_NUM_MALICIOUS = 1         # Bulyan: number of Byzantine clients to tolerate
 BULYAN_TO_KEEP = None            # Bulyan: clients to keep (None = auto)
 FEDAGAIN_EPSILON = 1e-6          # FedAgain: numerical stability constant
+
+# Corrupted-client simulation
+CORRUPT_CLIENTS = True           # enable corrupted clients
+CORRUPT_CLIENT_RATIO = 0.3       # fraction of clients corrupted (ρ)
+CORRUPTION_SEVERITY = 3          # image-corruption severity (1-5)
+POISON_MODE = "image"            # "image" (on-the-fly corruption) | "label_flip" (attack)
+LABEL_FLIP_RATIO = 1.0           # label_flip: fraction of a poisoned client's labels flipped
 ```
+
+**Poisoning modes** (`POISON_MODE`): `"image"` applies on-the-fly image
+corruptions (blur/noise/etc.) to corrupted clients, simulating data-quality
+issues; `"label_flip"` is a genuine adversarial data-poisoning attack that flips
+a fraction of a corrupted client's labels to a wrong class (images untouched).
+Both share the same seeded corrupted-client selection; label-flip runs are tagged
+`pm-label_flip` in the run key so they never collide with image-corruption runs.
 
 ## Supported Datasets
 

@@ -38,7 +38,7 @@ from pathlib import Path
 KEY_FIELDS = [
     "strategy", "dataset", "data_distribution", "num_clients", "num_rounds",
     "local_epochs", "corrupt_clients", "corrupt_ratio", "corruption_severity",
-    "trust_mode", "trust_alpha", "trust_beta", "seed",
+    "poison_mode", "trust_mode", "trust_alpha", "trust_beta", "seed",
 ]
 
 LEDGER_COLUMNS = [
@@ -70,6 +70,10 @@ def make_run_key(config: dict) -> str:
     if c.get("corrupt_clients"):
         parts.append(f"cr{c.get('corrupt_ratio', '')}")
         parts.append(f"sev{c.get('corruption_severity', '')}")
+        # Only tag non-default poisoning so image-corruption keys stay unchanged.
+        pm = c.get("poison_mode")
+        if pm and pm != "image":
+            parts.append(f"pm-{pm}")
     else:
         parts.append("clean")
     tm = c.get("trust_mode")

@@ -247,6 +247,7 @@ if __name__ == "__main__":
         "corrupt_clients": getattr(config, "CORRUPT_CLIENTS", False),
         "corrupt_ratio": getattr(config, "CORRUPT_CLIENT_RATIO", 0.0),
         "corruption_severity": getattr(config, "CORRUPTION_SEVERITY", 0),
+        "poison_mode": getattr(config, "POISON_MODE", "image"),
         "trust_mode": getattr(config, "FEDAGAIN_TRUST_MODE", "combined_mult") if is_fedagain else "",
         "trust_alpha": getattr(config, "FEDAGAIN_ALPHA", 1.0) if is_fedagain else "",
         "trust_beta": getattr(config, "FEDAGAIN_BETA", 1.0) if is_fedagain else "",

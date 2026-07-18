@@ -79,52 +79,79 @@ and (B) the **PyTorch experiment codebase**. This file is the resume point.
   `analyze_overhead.py`; GitHub release + data-availability statement. 🟢
 - R1.7 **de-emphasis of MNIST/CIFAR** as sanity checks (abstract + benchmark
   subsection reframed; clinical datasets foregrounded). 🟢
+- R1.5/R2.4 **corruption-degradation curve (5-point, ρ 0.1→0.6)**:
+  `subsec:degradation` + `tab:degradation` + `fig:degradation`. Full envelope
+  sweep 480/480. **Two-regime result:** minority (ρ≤0.4) FedMedian & FedAgain
+  statistically tied, the two most stable (drop +3.3/+4.7); majority (ρ≥0.5, the
+  median's breakdown point) FedMedian collapses to ~20% at ρ=0.6 while FedAgain
+  holds 50–80%. Across the full range FedAgain is #1 on drop (+9.0 vs +53.2) and
+  envelope-avg acc (71.8 vs 61.4). `analyze_degradation_curve.py` (RHOS=5). 🔵
+- **Reviewer-comment tags in the paper**: `\revtag{...}` macro + legend line;
+  every revised heading/block now carries a bold `[Rx.y]` tag naming the exact
+  reviewer comment it resolves (11 tags placed). Makes the response mapping
+  explicit for reviewers.
 
-**In progress:** corruption-envelope sweep (ρ 0.1/0.4) — see below → then the
-robustness-curve analysis (honest lever: does FedAgain degrade least?).
+- R1.5/R2.4 **high-corruption tail** (ρ 0.5/0.6) → `fig:degradation` extended to
+  **5 points** (192-run envelope-high sweep, ledger 288→480, 0 failed). The story
+  flipped in FedAgain's favour: two regimes split at the median's ρ=0.5 breakdown
+  point. Minority (ρ≤0.4): FedMedian & FedAgain statistically tied, the two most
+  stable (drop +3.3 / +4.7). Majority (ρ≥0.5): **FedMedian collapses to ~20–28%
+  (≈chance)** on all 4 datasets at ρ=0.6 while FedAgain holds 50–80% (+30 to +60
+  pt margin). Across the full range FedAgain is now #1 on *both* drop (+9.0 vs
+  +53.2) and envelope-avg acc (71.8 vs 61.4). Table `tab:degradation` (now 4-col,
+  `table*`, two-regime) + figure (vertical "corrupted majority" guide at ρ=0.5)
+  + findings paragraph all rewritten. `analyze_degradation_curve.py` RHOS=5.
+
+- R1.3/R2.3 **label-flipping poisoning attack** — DONE (analysis + paper).
+  `LabelFlipDataset` + `POISON_MODE`/`LABEL_FLIP_RATIO` + run_key `pm-label_flip`;
+  72-run sweep (FedAgain/FedAvg/FedMedian × 4 datasets × ρ{0.1,0.3} × 3 seeds).
+  `analyze_label_flip.py` → `subsec:label_flip` + `fig:label_flip` (blue).
+  **Result:** FedAgain's label-flip accuracy ≈ its image-corruption accuracy
+  (74.1 vs 73.7% at ρ=0.3) — the benchmark-error term suppresses poisoned
+  clients. Beats undefended FedAvg by +6.6 to +29.7 pts at ρ=0.3; ties FedMedian
+  on the 3 clinical sets, +12.3 on CIFAR. Softened R1.3/R2.3 claims re-tightened
+  to "robust to data-level poisoning" (line ~1198) + limitation (line ~1488)
+  updated to exclude only gradient-space/Byzantine attacks. NOTE: label-flip
+  runner does NOT write trust_scores (ablation figs from 2026-07-14 untouched).
 
 **Pending:**
 - **R2.4** — RFLPA, BOBA, RAHFL baselines (and FedDyn for R1.5). Biggest chunk.
-- R1.3/R2.3 — a real adversarial attack (label-flipping/poisoning).
-- R1.1c/R1.2 — formal convergence/robustness theory.
+- R1.1c/R1.2 — convergence + sensitivity. Plan: convergence curves (reuse
+  per-round data) + a weighted-FedAvg convergence *proposition* (writing, no
+  compute) + an ε sensitivity sweep (`FEDAGAIN_EPSILON` already parametrized;
+  small runner needed). (α,β) leans on the existing trust ablation.
 - **Response-to-reviewers letter** (Phase 6) + final Overleaf compile.
 - Overleaf sync pending: `FedAgain_classification.tex`, `biblio.bib` (7 new refs),
-  `baseline_comparison.png`, `rare_client_bias.png`.
+  `baseline_comparison.png`, `rare_client_bias.png`, `degradation_curve.png`,
+  `label_flip.png`.
 
-## Currently running (as of 2026-07-15 ~11:50)
+## Currently running (as of 2026-07-18)
 
-The ρ=0.3 baseline sweep **finished** (96/96, `analyze_baselines.py` → table +
-figure, done). Now running: detached **corruption-envelope sweep**
-(`scripts/run_envelope_sweep.sh`, via `setsid`) — same 8 strategies ×
-{DAUDON_MIX, JONATHAN_MIX, MYSTONE, CIFAR10} × non-iid-label, sev=3 ×
-seeds 42/43/44, at **ρ ∈ {0.1, 0.4}** (0.3 already done) = **192 runs (~13 h)**.
-Together the three ρ points give a degradation curve per method (the honest
-robustness lever for FedAgain). Ledger goes 96 → 288.
+**Nothing running.** The chained pipeline (ρ0.5/0.6 sweep → watcher → label-flip)
+finished cleanly: ledger at **552 completed, 0 failed**; `config.py` restored.
+- ρ=0.5/0.6 envelope-high: 192 runs (cr0.5 ×96, cr0.6 ×96) ✔ → 5-point curve done.
+- Label-flip: 72 runs (`pm-label_flip`) ✔ → analysis still pending.
 
 ```bash
-# monitor
-pgrep -c -f run_baselines                                 # alive?
-expr $(wc -l < results/experiment_ledger.csv) - 1         # completed / 288
-tail -1 results/logs/envelope_sweep_*.log
-# resume if it died (skips completed):
-setsid bash scripts/run_envelope_sweep.sh </dev/null >results/logs/envelope.out 2>&1 &
-# stop:
-pkill -f run_envelope_sweep; pkill -f run_baselines
+# sanity re-check (all should be idle / clean)
+pgrep -a python | grep -E "main.py|run_"          # expect nothing
+awk -F, 'NR>1{print $4}' results/experiment_ledger.csv | sort | uniq -c  # all "completed"
+git status --short config.py                       # expect clean
 ```
 
-## Next steps (tomorrow)
+## Next steps
 
-1. When the envelope sweep finishes: `git checkout config.py`; verify 288 runs.
-   Build the **corruption-degradation curve** (accuracy vs ρ per method + slope +
-   envelope-average) — extend `analysis/analyze_baselines.py`. If FedAgain
-   degrades least, add curve figure + paragraph (blue). If not, keep the honest
-   angle (no #corrupt prior, retains all clients, interpretable trust).
-2. **R2.4** — implement RFLPA / BOBA / RAHFL (+ optional FedDyn) as strategies
+1. **R2.4** — implement RFLPA / BOBA / RAHFL (+ FedDyn for R1.5) as strategies
    (pattern: `src/strategies/` + `train_*` in `src/client.py` + dispatch in
    `main.py`; verify on MNIST first — Scaffold-style divergence gotcha). Fold
-   into the baseline table.
-3. **Response-to-reviewers letter** (point-by-point, referencing the coloured
-   changes) — Phase 6 deliverable.
+   into the baseline + degradation tables. **Biggest remaining chunk** (GPU-heavy).
+2. **R1.1c/R1.2 theory** (mostly no compute — run in parallel with R2.4's GPU
+   time): convergence curves (reuse `results/rounds/*.csv`) + weighted-FedAvg
+   convergence proposition (writing) + ε sensitivity sweep (small runner;
+   `FEDAGAIN_EPSILON` already parametrized) + (α,β) framed via the trust ablation.
+3. **Response-to-reviewers letter** (point-by-point; the `\revtag{Rx.y}` tags in
+   the paper map each change to its comment) — Phase 6 deliverable.
+4. **Final Overleaf compile** + figure sync (see sync list above).
 
 ## Git / conventions
 

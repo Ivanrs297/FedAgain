@@ -145,6 +145,51 @@ class CorruptedDataset(Dataset):
             return corrupted_pil, label
 
 
+class LabelFlipDataset(Dataset):
+    """
+    Wrapper that applies a label-flipping data-poisoning attack to a client.
+
+    Unlike CorruptedDataset (which degrades the *images*), this is an adversarial
+    attack on the *labels*: a fraction of the client's samples have their target
+    replaced by a wrong class. This is the classic label-flipping poisoning
+    attack, distinct from the on-the-fly image corruption that simulates data
+    quality issues. The image itself is returned unchanged.
+
+    The flipped label is deterministic given (idx, seed): a per-sample offset in
+    [1, num_classes-1] is added modulo num_classes, so the target is always moved
+    to a different, reproducibly-chosen class (a "dirty-label" flip). With
+    flip_ratio=1.0 every sample of the poisoned client is mislabeled.
+    """
+
+    def __init__(self, base_dataset, num_classes, flip_ratio=1.0, seed=42):
+        """
+        Args:
+            base_dataset: Original clean client dataset
+            num_classes: Number of classes in the task (targets in [0, C-1])
+            flip_ratio: Fraction of the client's samples to mislabel (0-1)
+            seed: Random seed for reproducibility (vary per client)
+        """
+        if num_classes is None or num_classes < 2:
+            raise ValueError("LabelFlipDataset requires num_classes >= 2")
+        self.base_dataset = base_dataset
+        self.num_classes = int(num_classes)
+        n = len(base_dataset)
+        rng = np.random.RandomState(seed)
+        # Which samples get flipped, and to which (different) class.
+        self.flip = rng.random(n) < flip_ratio
+        # Offset in [1, C-1] guarantees the new label differs from the original.
+        self.offset = rng.randint(1, self.num_classes, size=n)
+
+    def __len__(self):
+        return len(self.base_dataset)
+
+    def __getitem__(self, idx):
+        img, label = self.base_dataset[idx]
+        if self.flip[idx]:
+            label = int((int(label) + int(self.offset[idx])) % self.num_classes)
+        return img, label
+
+
 class CIFAR10CDataset(Dataset):
     """
     CIFAR-10-C with Random Corruptions: Realistic robustness training and testing.
@@ -552,52 +597,70 @@ def load_dataset(dataset_name: str, root: str = "./data"):
     return train_dataset, test_dataset, dataset_info
 
 
-def apply_corruptions_to_clients(client_datasets, corrupt_ratio=0.3, severity=3, seed=42):
+def apply_corruptions_to_clients(client_datasets, corrupt_ratio=0.3, severity=3, seed=42,
+                                 poison_mode="image", num_classes=None, flip_ratio=1.0):
     """
     Apply corruptions to a subset of clients (simulating corrupted/poisoned clients).
 
     Args:
         client_datasets: List of client datasets
         corrupt_ratio: Ratio of clients to corrupt (e.g., 0.3 = 30%)
-        severity: Corruption severity (1-5)
+        severity: Corruption severity (1-5), used when poison_mode == "image"
         seed: Random seed controlling which clients are corrupted and their
               per-client corruption instances (varies across experiment seeds)
+        poison_mode: "image" (on-the-fly image corruption, the default) or
+              "label_flip" (adversarial label-flipping data-poisoning attack)
+        num_classes: Number of task classes, required for poison_mode="label_flip"
+        flip_ratio: Fraction of a poisoned client's labels to flip (label_flip only)
 
     Returns:
         List of datasets (some corrupted, some clean)
         List of corrupted client indices
+
+    The corrupted-client SELECTION is identical across poison modes (same seeded
+    np.random.choice), so downstream analyses that reconstruct which clients were
+    poisoned from the seed remain valid regardless of the attack type.
     """
     import numpy as np
 
     num_clients = len(client_datasets)
     num_corrupt = int(num_clients * corrupt_ratio)
 
-    # Randomly select clients to corrupt
+    # Randomly select clients to corrupt (identical selection for every poison_mode)
     np.random.seed(seed)
     corrupted_indices = np.random.choice(num_clients, num_corrupt, replace=False)
-    
+
     print(f"\n[Corrupted Clients Simulation]")
     print(f"  Total clients: {num_clients}")
     print(f"  Corrupted clients: {num_corrupt} ({corrupt_ratio*100:.0f}%)")
     print(f"  Corrupted client IDs: {sorted(corrupted_indices.tolist())}")
-    print(f"  Corruption severity: {severity}")
+    print(f"  Poison mode: {poison_mode}"
+          + (f" (flip_ratio={flip_ratio})" if poison_mode == "label_flip"
+             else f" (severity={severity})"))
     print(f"  Benign clients: {num_clients - num_corrupt} ({(1-corrupt_ratio)*100:.0f}%)")
-    
-    # Apply corruptions to selected clients
+
+    # Apply the chosen poisoning to selected clients
     result_datasets = []
     for i, dataset in enumerate(client_datasets):
         if i in corrupted_indices:
-            # Wrap dataset with corruption
-            corrupted_dataset = CorruptedDataset(
-                dataset,
-                severity=severity,
-                seed=seed + i  # Different seed per client
-            )
-            result_datasets.append(corrupted_dataset)
+            if poison_mode == "label_flip":
+                poisoned = LabelFlipDataset(
+                    dataset,
+                    num_classes=num_classes,
+                    flip_ratio=flip_ratio,
+                    seed=seed + i  # Different flip pattern per client
+                )
+            else:
+                poisoned = CorruptedDataset(
+                    dataset,
+                    severity=severity,
+                    seed=seed + i  # Different corruption per client
+                )
+            result_datasets.append(poisoned)
         else:
             # Keep clean
             result_datasets.append(dataset)
-    
+
     return result_datasets, corrupted_indices.tolist()
 
 
@@ -770,11 +833,16 @@ def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: i
     if getattr(cfg, 'CORRUPT_CLIENTS', False):
         corrupt_ratio = getattr(cfg, 'CORRUPT_CLIENT_RATIO', 0.3)
         corruption_severity = getattr(cfg, 'CORRUPTION_SEVERITY', 3)
+        poison_mode = getattr(cfg, 'POISON_MODE', 'image')
+        flip_ratio = getattr(cfg, 'LABEL_FLIP_RATIO', 1.0)
         client_datasets, corrupted_client_ids = apply_corruptions_to_clients(
             client_datasets,
             corrupt_ratio=corrupt_ratio,
             severity=corruption_severity,
-            seed=seed
+            seed=seed,
+            poison_mode=poison_mode,
+            num_classes=dataset_info["num_classes"],
+            flip_ratio=flip_ratio,
         )
     
     # Create train and validation loaders for each client

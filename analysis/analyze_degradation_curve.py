@@ -3,7 +3,7 @@
 Corruption-robustness degradation curve (Reviewer 1.5 / 2.4, honest lever).
 
 Reads the envelope sweep from results/experiment_ledger.csv (8 strategies x
-4 datasets x rho in {0.1,0.3,0.4} x severity 3 x seeds 42/43/44) and shows how
+4 datasets x rho in {0.1,0.3,0.4,0.5,0.6} x severity 3 x seeds 42/43/44) and shows how
 test accuracy degrades as the corrupted-client fraction rho grows. The message:
 only FedMedian and FedAgain stay nearly flat, while every other baseline falls
 off 2-3x faster -- and FedAgain, unlike FedMedian, needs no prior on the number
@@ -15,8 +15,12 @@ Outputs:
 Prints the stability ranking (mean degradation rho=0.1->max) + envelope-average
 accuracy for the paper paragraph.
 
-Works on partial data (draws whatever rho points are complete); the final
-figure needs the rho=0.4 runs finished.
+Note on rho > 0.5: with K=10 clients, rho=0.5 means 5 corrupted and rho=0.6
+means 6 -- i.e. a corrupted majority, the regime where FedMedian's coordinate-
+wise-median guarantee breaks but FedAgain's soft trust re-weighting has no
+breakdown threshold.
+
+Works on partial data (draws whatever rho points are complete).
 """
 import csv
 import os
@@ -38,7 +42,7 @@ DATASETS = ["DAUDON_MIX", "JONATHAN_MIX", "MYSTONE", "CIFAR10"]
 DS_LABEL = {"DAUDON_MIX": "A (Daudon)", "JONATHAN_MIX": "B (Jonathan)",
             "MYSTONE": "C (MyStone)", "CIFAR10": "CIFAR-10"}
 STRATS = ["FedAvg", "FedProx", "FedMedian", "Bulyan", "FedBN", "Scaffold", "MOON", "FedAgain"]
-RHOS = [0.1, 0.3, 0.4]
+RHOS = [0.1, 0.3, 0.4, 0.5, 0.6]
 
 # muted palette for baselines; FedAgain + FedMedian emphasized
 STYLE = {
@@ -132,6 +136,11 @@ def main():
                             lw=stl["lw"], ls=stl["ls"], marker=stl["marker"],
                             ms=stl["ms"], zorder=stl["z"], capsize=2,
                             alpha=0.95 if s in ("FedAgain", "FedMedian") else 0.7)
+        # majority-corruption threshold: rho>=0.5 => >=5/10 clients corrupted,
+        # where the coordinate-wise median's guarantee breaks down.
+        ax.axvline(0.5, color="k", ls=":", lw=1.2, alpha=0.55, zorder=0)
+        ax.text(0.5, ax.get_ylim()[0], r" corrupted majority", fontsize=9,
+                color="0.35", ha="left", va="bottom")
         ax.set_title(DS_LABEL[ds], fontsize=15)
         ax.set_xlabel(r"Corrupted-client fraction $\rho$")
         ax.set_ylabel("Test accuracy (%)")

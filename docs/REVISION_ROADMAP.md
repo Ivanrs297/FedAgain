@@ -24,6 +24,24 @@ framing + general fixes (🔵). Baselines FedBN/Scaffold/MOON implemented.
   retains all clients, interpretable trust weights.
 - **Overleaf to sync:** `baseline_comparison.png`, `biblio.bib`, the `.tex`.
 
+### 1.3 ✅ Corruption-degradation curve, 5-point ρ 0.1→0.6  [R1.5 / R2.4] 🔵 — *DONE (envelope sweep 480/480)*
+- `scripts/run_envelope_sweep.sh` (ρ∈{0.1,0.3,0.4}) + `scripts/run_envelope_high.sh`
+  (ρ∈{0.5,0.6}) → 8 strategies × 4 datasets × 5 ρ × 3 seeds = 480 runs.
+  `analysis/analyze_degradation_curve.py` (RHOS=[0.1,0.3,0.4,0.5,0.6]) →
+  `results/baselines/{degradation_curve.png, degradation_summary.csv}`.
+- **Result (honest, two-regime story):** With K=10, ρ≥0.5 is a *corrupted majority*
+  — the coordinate-wise-median breakdown point.
+  - *Minority (ρ≤0.4):* FedMedian (drop +3.3) and FedAgain (+4.7) are the two most
+    stable and statistically tied (within 1σ on 11/12 dataset×ρ points).
+  - *Majority (ρ≥0.5):* FedMedian **collapses to ~20–28% (≈chance)** on all 4
+    datasets at ρ=0.6; FedAgain holds 50–80% (+30 to +60 pt margin).
+  - *Full range:* FedAgain is #1 on both drop (+9.0 vs FedMedian +53.2) and
+    envelope-avg acc (71.8 vs 61.4). No #corrupt prior; discards no updates.
+- **Paper:** `subsec:degradation` (blue) — intro, `tab:degradation` (now 4-col
+  `table*`, two drop columns + envelope), `fig:degradation` (vertical "corrupted
+  majority" guide at ρ=0.5), findings paragraph — all rewritten for 5 points.
+- **Overleaf to sync:** `degradation_curve.png`, the `.tex`.
+
 ### 1.2 ✅ Rare/hard-client bias  [R2.2] 🟣 — *DONE (committed a3f435d)*
 - `analysis/analyze_rare_client_bias.py` reconstructs corrupted/benign status +
   intrinsic difficulty (benchmark error) deterministically (seed 44, ρ=0.3) and
@@ -87,12 +105,24 @@ framing + general fixes (🔵). Baselines FedBN/Scaffold/MOON implemented.
 
 ## Phase 4 — Adversarial attack  [R1.3 / R2.3] 🔵
 
-### 4.1 ⬜ Label-flipping (easiest) — re-strengthen robustness claims
-- Add a `label_flip` poisoning mode in `src/dataset.py` (flip a fraction of labels
-  for corrupted clients), selectable via config; distinct from image corruption.
-- Run FedAgain vs FedAvg/FedMedian under label-flip at ρ∈{0.1,0.3}.
-- **Paper:** re-tighten the softened claims (partially) with a real attack result.
-- Effort: ~1 day.
+### 4.1 ✅ Label-flipping poisoning attack — re-strengthened robustness claims — *DONE*
+- ✅ **Code:** `LabelFlipDataset` + `poison_mode` branch in `src/dataset.py`
+  (flips a fraction of a corrupted client's labels to a wrong class; images
+  untouched; deterministic per client seed). Config flags `POISON_MODE`/
+  `LABEL_FLIP_RATIO`; `make_run_key` `pm-label_flip` tag (no ledger collision).
+  Runner `scripts/run_label_flip.{py,sh}` (FedAgain vs FedAvg/FedMedian,
+  ρ∈{0.1,0.3}, 4 datasets, 3 seeds = 72 runs). Unit + integration tests PASS.
+- ✅ **Sweep DONE** (72/72, ledger 480→552, 0 failed). `analyze_label_flip.py`
+  → `results/baselines/{label_flip_summary.csv, label_flip.png}`.
+- ✅ **Result (honest):** FedAgain's label-flip accuracy ≈ its image-corruption
+  accuracy at the same ρ (74.1 vs 73.7% at ρ=0.3) — the benchmark-error term
+  suppresses poisoned clients. At ρ=0.3 FedAgain beats undefended FedAvg by
+  +16.7/+29.7/+6.6/+14.3 pts; ties FedMedian on the 3 clinical sets, +12.3 on
+  CIFAR. Mechanism: flipped-label model → high E_k → trust weight collapses.
+- ✅ **Paper:** `subsec:label_flip` (blue) + `fig:label_flip`; softened R1.3/R2.3
+  claim (line ~1198) re-tightened to "robust to data-level poisoning"; limitation
+  (line ~1488) narrowed to exclude only gradient-space/Byzantine attacks.
+- **Overleaf to sync:** `label_flip.png`, the `.tex`.
 
 ---
 
