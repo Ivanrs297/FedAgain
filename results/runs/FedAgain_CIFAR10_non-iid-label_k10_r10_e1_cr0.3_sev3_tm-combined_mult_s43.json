@@ -2,8 +2,8 @@
   "run_key": "FedAgain_CIFAR10_non-iid-label_k10_r10_e1_cr0.3_sev3_tm-combined_mult_s43",
   "status": "completed",
   "host": "spark-a618",
-  "started_at": "2026-07-14 06:45:19",
-  "updated_at": "2026-07-14 06:48:36",
+  "started_at": "2026-07-14 20:32:44",
+  "updated_at": "2026-07-14 20:36:00",
   "config": {
     "model": "RESNET18",
     "strategy": "FedAgain",
@@ -27,69 +27,69 @@
   "rounds": [
     {
       "round": 1,
-      "timestamp": "2026-07-14 06:45:36",
-      "accuracy": 0.1451,
-      "loss": 2.160738482261999
+      "timestamp": "2026-07-14 20:33:01",
+      "accuracy": 0.186,
+      "loss": 2.118221668008798
     },
     {
       "round": 2,
-      "timestamp": "2026-07-14 06:45:55",
-      "accuracy": 0.57,
-      "loss": 1.262039642174023
+      "timestamp": "2026-07-14 20:33:20",
+      "accuracy": 0.5511,
+      "loss": 1.2839235663414001
     },
     {
       "round": 3,
-      "timestamp": "2026-07-14 06:46:15",
-      "accuracy": 0.6961,
-      "loss": 0.8842786731430516
+      "timestamp": "2026-07-14 20:33:40",
+      "accuracy": 0.673,
+      "loss": 0.9268301086494336
     },
     {
       "round": 4,
-      "timestamp": "2026-07-14 06:46:35",
-      "accuracy": 0.7407,
-      "loss": 0.7481420546674881
+      "timestamp": "2026-07-14 20:34:00",
+      "accuracy": 0.7512,
+      "loss": 0.7260304197145346
     },
     {
       "round": 5,
-      "timestamp": "2026-07-14 06:46:55",
-      "accuracy": 0.7855,
-      "loss": 0.6486688828506408
+      "timestamp": "2026-07-14 20:34:19",
+      "accuracy": 0.7893,
+      "loss": 0.6170553996825752
     },
     {
       "round": 6,
-      "timestamp": "2026-07-14 06:47:15",
-      "accuracy": 0.8072,
-      "loss": 0.5822047036581527
+      "timestamp": "2026-07-14 20:34:39",
+      "accuracy": 0.7938,
+      "loss": 0.6204849330666727
     },
     {
       "round": 7,
-      "timestamp": "2026-07-14 06:47:35",
-      "accuracy": 0.8127,
-      "loss": 0.5552713248533563
+      "timestamp": "2026-07-14 20:34:59",
+      "accuracy": 0.8207,
+      "loss": 0.5326991949361354
     },
     {
       "round": 8,
-      "timestamp": "2026-07-14 06:47:55",
-      "accuracy": 0.8191,
-      "loss": 0.5279720420606981
+      "timestamp": "2026-07-14 20:35:19",
+      "accuracy": 0.8282,
+      "loss": 0.5114629349579065
     },
     {
       "round": 9,
-      "timestamp": "2026-07-14 06:48:15",
-      "accuracy": 0.8191,
-      "loss": 0.5627241370776972
+      "timestamp": "2026-07-14 20:35:39",
+      "accuracy": 0.8188,
+      "loss": 0.5683817745873723
     },
     {
       "round": 10,
-      "timestamp": "2026-07-14 06:48:34",
-      "accuracy": 0.8248,
-      "loss": 0.5258117496086576
+      "timestamp": "2026-07-14 20:35:58",
+      "accuracy": 0.8362,
+      "loss": 0.5014825750844547
     }
   ],
   "final_metrics": {
-    "accuracy": 0.8248,
-    "precision": 0.8282503786444433,
-    "recall": 0.8248,
-    "f1": 0.8232077785343627
+    "accuracy": 0.8362,
+    "precision": 0.8399594425337957,
+    "recall": 0.8362,
+    "f1": 0.8349371951270147
   }
 }

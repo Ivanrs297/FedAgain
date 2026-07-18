@@ -1,0 +1,8 @@
+Distribution,Strategy,Accuracy_Mean,Accuracy_Std,Precision_Mean,Precision_Std,Recall_Mean,Recall_Std,F1_Mean,F1_Std,Accuracy_Improvement_%,F1_Improvement_%
+IID,FedAvg,0.7636,0.098,0.7888,0.105,0.7630,0.098,0.7575,0.101,0.00,0.00
+IID,FedAgain,0.7865,0.081,0.8079,0.085,0.7858,0.082,0.7848,0.083,2.99,3.60
+Non-IID_Label,FedAvg,0.6979,0.087,0.7395,0.084,0.6971,0.087,0.6850,0.096,0.00,0.00
+Non-IID_Label,FedAgain,0.7330,0.091,0.7617,0.086,0.7323,0.091,0.7259,0.094,5.04,5.97
+Non-IID_Dirichlet,FedAvg,0.6850,0.148,0.7330,0.128,0.6859,0.148,0.6724,0.157,0.00,0.00
+Non-IID_Dirichlet,FedAgain,0.7181,0.111,0.7412,0.134,0.7171,0.111,0.6970,0.129,4.82,3.66
+

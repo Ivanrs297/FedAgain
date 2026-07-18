@@ -1,0 +1,8 @@
+[sweep] START Tue Jul 14 03:16:02 AM CST 2026
+[sweep] phase 1: ablation + additive  Tue Jul 14 03:16:02 AM CST 2026
+[sweep] phase 2: weighted_additive grid  Tue Jul 14 07:02:01 AM CST 2026
+[sweep]   weighted_additive alpha=2 beta=1  Tue Jul 14 07:02:01 AM CST 2026
+[sweep]   weighted_additive alpha=1 beta=2  Tue Jul 14 07:28:32 AM CST 2026
+[sweep]   weighted_additive alpha=0.5 beta=1  Tue Jul 14 07:55:02 AM CST 2026
+[sweep] DONE Tue Jul 14 08:21:31 AM CST 2026
+[sweep] results in results/experiment_ledger.csv, results/runs/, results/rounds/, results/trust_scores/

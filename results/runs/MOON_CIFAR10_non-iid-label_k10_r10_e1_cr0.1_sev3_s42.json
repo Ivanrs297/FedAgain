@@ -1,0 +1,95 @@
+{
+  "run_key": "MOON_CIFAR10_non-iid-label_k10_r10_e1_cr0.1_sev3_s42",
+  "status": "completed",
+  "host": "spark-a618",
+  "started_at": "2026-07-15 15:39:49",
+  "updated_at": "2026-07-15 15:43:45",
+  "config": {
+    "model": "RESNET18",
+    "strategy": "MOON",
+    "dataset": "CIFAR10",
+    "data_distribution": "non-iid-label",
+    "num_clients": 10,
+    "num_rounds": 10,
+    "local_epochs": 1,
+    "batch_size": 32,
+    "learning_rate": 0.01,
+    "use_pretrained": true,
+    "corrupt_clients": true,
+    "corrupt_ratio": 0.1,
+    "corruption_severity": 3,
+    "trust_mode": "",
+    "trust_alpha": "",
+    "trust_beta": "",
+    "seed": 42
+  },
+  "rounds_completed": 10,
+  "rounds": [
+    {
+      "round": 1,
+      "timestamp": "2026-07-15 15:40:13",
+      "accuracy": 0.1239,
+      "loss": 2.339133175036397
+    },
+    {
+      "round": 2,
+      "timestamp": "2026-07-15 15:40:35",
+      "accuracy": 0.5724,
+      "loss": 1.2234100623252673
+    },
+    {
+      "round": 3,
+      "timestamp": "2026-07-15 15:40:58",
+      "accuracy": 0.694,
+      "loss": 0.8873734239000863
+    },
+    {
+      "round": 4,
+      "timestamp": "2026-07-15 15:41:22",
+      "accuracy": 0.7481,
+      "loss": 0.7867029599678783
+    },
+    {
+      "round": 5,
+      "timestamp": "2026-07-15 15:41:45",
+      "accuracy": 0.7897,
+      "loss": 0.6140438751481212
+    },
+    {
+      "round": 6,
+      "timestamp": "2026-07-15 15:42:09",
+      "accuracy": 0.7851,
+      "loss": 0.6653994463693601
+    },
+    {
+      "round": 7,
+      "timestamp": "2026-07-15 15:42:33",
+      "accuracy": 0.8139,
+      "loss": 0.56595048317894
+    },
+    {
+      "round": 8,
+      "timestamp": "2026-07-15 15:42:56",
+      "accuracy": 0.811,
+      "loss": 0.5710088681584349
+    },
+    {
+      "round": 9,
+      "timestamp": "2026-07-15 15:43:19",
+      "accuracy": 0.8363,
+      "loss": 0.49252993449235494
+    },
+    {
+      "round": 10,
+      "timestamp": "2026-07-15 15:43:43",
+      "accuracy": 0.8417,
+      "loss": 0.47471114259939223
+    }
+  ],
+  "final_metrics": {
+    "accuracy": 0.8417,
+    "precision": 0.8430680006961394,
+    "recall": 0.8417000000000001,
+    "f1": 0.8407858891182783
+  }
+}

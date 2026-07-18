@@ -1,0 +1,8 @@
+[watch] 2026-07-17 12:12:18 watcher started; waiting for the rho envelope sweep to finish...
+[watch] 2026-07-18 02:54:28 run_envelope_high.sh no longer running.
+[watch] 2026-07-18 02:54:28 no run_baselines.py / main.py sweep process alive; GPU is free.
+[watch] 2026-07-18 02:54:28 ledger now has 480 completed runs (expected 480 if rho sweep finished cleanly).
+Updated 1 path from the index
+[watch] 2026-07-18 02:54:28 config.py restored from git.
+[watch] 2026-07-18 02:54:28 launching label-flip sweep...
+[watch] 2026-07-18 02:54:28 label-flip sweep launched (see results/logs/label_flip_*.log). Watcher done.
