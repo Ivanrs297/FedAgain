@@ -90,16 +90,25 @@ framing + general fixes (🔵). Baselines FedBN/Scaffold/MOON implemented.
 
 ## Phase 3 — Recent robust baselines  [R2.4 / R1.5] 🟣🟢 — *biggest chunk*
 
-### 3.1 ⬜ RFLPA, BOBA, RAHFL (+ optional FedDyn)
-- Implement each as a strategy (pattern: `src/strategies/` + a `train_*` in
-  `src/client.py` if it changes local training, + dispatch/state in `main.py`,
-  exactly like Scaffold/MOON). Verify each on MNIST (no divergence) before sweeping.
-- **Gotcha (learned):** control-variate / drift methods need plain SGD; verify
-  convergence on a tiny run first.
-- Re-run `scripts/run_baselines.py --strategies RFLPA BOBA RAHFL ...` and fold
-  into the Phase-1 table.
-- Effort: ~1–2 days each (implementation + verification + runs). Highest risk —
-  budget time; a wrong baseline is worse than none.
+### 3.1 🔄 FedDyn, RFLPA, BOBA (RAHFL dropped) — *CODE DONE + verified; sweep pending*
+- ✅ **FedDyn** (Acar et al., ICLR 2021; R1.5): `train_feddyn` + server drift `h`;
+  `θ=mean(θ_k)-(1/α)h`. No root data, momentum OK. Verified MNIST 0.97→0.99.
+- ✅ **RFLPA** (Mai et al., NeurIPS 2024) = FLTrust core, crypto omitted: ReLU'd
+  cosine to a **step-matched** server reference on a clean root set, norm-clipped +
+  trust-weighted. Verified MNIST 0.90→0.99. (Step-matching was essential — a small
+  root set otherwise yields a tiny reference update and the model freezes.)
+- ✅ **BOBA** (Bao et al., AISTATS 2024): robust affine-subspace fit + barycentric
+  on-simplex filter (`boba_aggregate`). Feasibility clamp `n-f>c-1` → degenerates
+  to mean on CIFAR/MNIST (10 clients, 10 classes), effective on clinical (c=6).
+  Verified DAUDON 0.66→0.74 (kept 8/10). Note the CIFAR limitation honestly.
+- ✅ Shared infra `carve_server_root` (balanced clean hold-out before partitioning,
+  no leakage) → `dataset_info["server_root"]`; only for RFLPA/BOBA (backward
+  compatible, regression-checked). Commit a961b5e.
+- ❌ **RAHFL dropped** (decision): model-heterogeneous public-dataset distillation,
+  no param aggregation → paradigm mismatch. Address as a justification paragraph
+  (cite AugHFL, ICCV 2023, its homogeneous-FL predecessor).
+- ⬜ **NEXT:** sweep FedDyn/RFLPA/BOBA (4 datasets × ρ × 3 seeds), fold into the
+  baseline + degradation tables, write the R2.4 paragraph + RAHFL justification.
 
 ---
 

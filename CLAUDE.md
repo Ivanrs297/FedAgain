@@ -40,11 +40,26 @@ and (B) the **PyTorch experiment codebase**. This file is the resume point.
 - **`config.NUM_WORKERS=8`** parallelizes the CPU-bound image corruption (~2.7x
   speedup; clients train sequentially so no oversubscription).
 - **Strategies** (dispatched in `main.py`): FedAvg, FedProx, FedYogi, FedMedian,
-  Bulyan, **FedBN**, **Scaffold**, **MOON**, **FedAgain**.
+  Bulyan, **FedBN**, **Scaffold**, **MOON**, **FedDyn**, **RFLPA**, **BOBA**, **FedAgain**.
   - FedBN keeps per-client BatchNorm local (state in `client_bn_state`).
   - MOON: `train_moon` in `src/client.py`, per-client prev model in `client_prev_state`.
   - Scaffold: `train_scaffold`, control variates `scaffold_c_global`/`scaffold_c_local_state`;
     **uses plain SGD** (momentum breaks the control-variate estimate — diverges).
+  - **FedDyn** (R1.5): `train_feddyn`, per-client grad state `feddyn_g_local` + server
+    drift `feddyn_h`; `θ=mean(θ_k)-(1/α)h` on trainable params (BN buffers averaged).
+    Momentum OK (reg is a real grad term). `FEDDYN_ALPHA=0.1`. No root data.
+  - **RFLPA** (R2.4) = FLTrust core (crypto omitted): ReLU'd cosine to a server
+    reference update on a clean root set, norm-clipped + trust-weighted. Server
+    reference trained **step-matched** to clients (else magnitude too small → frozen).
+  - **BOBA** (R2.4): robust affine-subspace fit + barycentric on-simplex filter
+    (`boba_aggregate`). Needs `n-f > c-1` → degenerates to mean on CIFAR/MNIST
+    (10 clients, 10 classes); effective on clinical sets (c=6). `BOBA_NUM_BYZ=2`.
+  - RFLPA/BOBA need a **server root set**: `carve_server_root` in `src/dataset.py`
+    carves a class-balanced clean hold-out before partitioning (no leakage), via
+    `SERVER_ROOT_PER_CLASS`; exposed as `dataset_info["server_root"]`. FedAgain's
+    novelty is needing *none* of this → honest contrast.
+  - **RAHFL** (R2.4) deliberately NOT implemented (paradigm mismatch: model-hetero
+    distillation, public dataset, no param aggregation) → justification paragraph.
   - FedAgain trust formulation is pluggable via `src/strategies/trust.py`
     (`FEDAGAIN_TRUST_MODE`: combined_mult | benchmark_only | divergence_only |
     additive | weighted_additive) — used for the #2/#3 ablation.
@@ -114,8 +129,14 @@ and (B) the **PyTorch experiment codebase**. This file is the resume point.
   updated to exclude only gradient-space/Byzantine attacks. NOTE: label-flip
   runner does NOT write trust_scores (ablation figs from 2026-07-14 untouched).
 
+- **R2.4 baselines — code DONE + verified (2026-07-18), compute PENDING.** FedDyn,
+  RFLPA, BOBA implemented + smoke-verified on MNIST/clinical (commit a961b5e);
+  RAHFL dropped (paradigm mismatch → paragraph). Registered in `run_baselines.py`
+  ALL_STRATEGIES. NEXT: sweep the 3 new strategies (4 datasets × ρ × 3 seeds) +
+  fold into `tab:baseline_comparison` + `tab:degradation` + write the paragraph;
+  note BOBA's CIFAR degeneracy and RFLPA/BOBA's root-data requirement honestly.
+
 **Pending:**
-- **R2.4** — RFLPA, BOBA, RAHFL baselines (and FedDyn for R1.5). Biggest chunk.
 - R1.1c/R1.2 — convergence + sensitivity. Plan: convergence curves (reuse
   per-round data) + a weighted-FedAvg convergence *proposition* (writing, no
   compute) + an ε sensitivity sweep (`FEDAGAIN_EPSILON` already parametrized;
@@ -141,10 +162,12 @@ git status --short config.py                       # expect clean
 
 ## Next steps
 
-1. **R2.4** — implement RFLPA / BOBA / RAHFL (+ FedDyn for R1.5) as strategies
-   (pattern: `src/strategies/` + `train_*` in `src/client.py` + dispatch in
-   `main.py`; verify on MNIST first — Scaffold-style divergence gotcha). Fold
-   into the baseline + degradation tables. **Biggest remaining chunk** (GPU-heavy).
+1. **R2.4 — sweep the 3 new baselines** (FedDyn/RFLPA/BOBA; code done, commit
+   a961b5e). Run `scripts/run_baselines.py --strategies FedDyn RFLPA BOBA` across
+   the 4 datasets × seeds (and the ρ grid for the degradation table). Then fold
+   into `tab:baseline_comparison` + `tab:degradation`, write the R2.4 paragraph +
+   the RAHFL paradigm-mismatch justification (cite AugHFL, ICCV 2023). Flag BOBA's
+   CIFAR degeneracy (needs n-f>c-1) and RFLPA/BOBA's server-root requirement.
 2. **R1.1c/R1.2 theory** (mostly no compute — run in parallel with R2.4's GPU
    time): convergence curves (reuse `results/rounds/*.csv`) + weighted-FedAvg
    convergence proposition (writing) + ε sensitivity sweep (small runner;
