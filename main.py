@@ -384,6 +384,7 @@ if __name__ == "__main__":
         "trust_mode": getattr(config, "FEDAGAIN_TRUST_MODE", "combined_mult") if is_fedagain else "",
         "trust_alpha": getattr(config, "FEDAGAIN_ALPHA", 1.0) if is_fedagain else "",
         "trust_beta": getattr(config, "FEDAGAIN_BETA", 1.0) if is_fedagain else "",
+        "epsilon": getattr(config, "FEDAGAIN_EPSILON", 1e-6) if is_fedagain else "",
         "seed": getattr(config, "SEED", 42),
     }
     tracker = ExperimentTracker(tracker_config, results_dir="results")

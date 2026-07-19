@@ -38,7 +38,7 @@ from pathlib import Path
 KEY_FIELDS = [
     "strategy", "dataset", "data_distribution", "num_clients", "num_rounds",
     "local_epochs", "corrupt_clients", "corrupt_ratio", "corruption_severity",
-    "poison_mode", "trust_mode", "trust_alpha", "trust_beta", "seed",
+    "poison_mode", "trust_mode", "trust_alpha", "trust_beta", "epsilon", "seed",
 ]
 
 LEDGER_COLUMNS = [
@@ -82,6 +82,10 @@ def make_run_key(config: dict) -> str:
         if tm == "weighted_additive":
             parts.append(f"a{c.get('trust_alpha', '')}")
             parts.append(f"b{c.get('trust_beta', '')}")
+        # Only tag a non-default epsilon so all pre-existing keys stay valid.
+        eps = c.get("epsilon")
+        if eps not in (None, "", 1e-6):
+            parts.append(f"eps{eps}")
     if c.get("seed") is not None:
         parts.append(f"s{c['seed']}")
     raw = "_".join(p for p in parts if p != "")
