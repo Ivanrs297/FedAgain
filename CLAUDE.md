@@ -47,7 +47,9 @@ and (B) the **PyTorch experiment codebase**. This file is the resume point.
     **uses plain SGD** (momentum breaks the control-variate estimate — diverges).
   - **FedDyn** (R1.5): `train_feddyn`, per-client grad state `feddyn_g_local` + server
     drift `feddyn_h`; `θ=mean(θ_k)-(1/α)h` on trainable params (BN buffers averaged).
-    Momentum OK (reg is a real grad term). `FEDDYN_ALPHA=0.1`. No root data.
+    Momentum OK (reg is a real grad term). `FEDDYN_ALPHA=1.0` (not the paper's 0.1:
+    small α amplifies server drift h by 1/α → loss blowup on pretrained ResNet18 /
+    10 rounds / full participation; 1.0 is in-range and stable). No root data.
   - **RFLPA** (R2.4) = FLTrust core (crypto omitted): ReLU'd cosine to a server
     reference update on a clean root set, norm-clipped + trust-weighted. Server
     reference trained **step-matched** to clients (else magnitude too small → frozen).

@@ -36,7 +36,7 @@ MOON_MU = 1.0  # MOON: weight of the model-contrastive loss term
 MOON_TEMPERATURE = 0.5  # MOON: temperature for the contrastive loss
 BULYAN_NUM_MALICIOUS = 1  # Bulyan: number of Byzantine/malicious clients to tolerate
 BULYAN_TO_KEEP = None  # Bulyan: number of clients to keep (None = auto)
-FEDDYN_ALPHA = 0.1  # FedDyn: dynamic-regularization coefficient alpha (Acar et al., ICLR 2021)
+FEDDYN_ALPHA = 1.0  # FedDyn dynamic-reg coeff. 1.0 (not the paper default 0.1) for stability here: 10 clients, full participation, pretrained ResNet18, 10 rounds -- small alpha amplifies the server drift h by 1/alpha and diverges (loss blowup); alpha=1.0 is within the paper's tested range and converges cleanly.
 FEDDYN_CLIP = 10.0  # FedDyn: gradient-norm clip for local training stability
 # Reference-based robust baselines (need a clean server root set; see load_data).
 SERVER_ROOT_PER_CLASS = 20  # samples/class carved for RFLPA/BOBA server reference (0=off)
