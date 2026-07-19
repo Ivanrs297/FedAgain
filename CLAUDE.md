@@ -158,6 +158,16 @@ and (B) the **PyTorch experiment codebase**. This file is the resume point.
   `scripts/watch_and_run_epsilon.sh` (waits for R2.4 sweep, then runs, then
   restores config.py). Expected ledger 732 → 780.
 
+- **Micro-gaps R1.1b/R2.5 closed (2026-07-18 night):** verbatim reviewer text
+  (now in `reviewers_comments.txt` at repo root) asked for two things nobody had
+  mapped: R1.1b's "or **learned** weighting" → green paragraph after the
+  mechanism prose in `sec:trust_ablation` (no supervision available, trainable
+  server component, loses interpretability + Prop.~1 guarantees); R2.5's
+  "alternative **normalization** strategies" → violet paragraph after the
+  ablation intro (sum-to-one is scale-invariant ⇒ no extra hyper-parameter;
+  softmax needs a tuned temperature and can collapse onto one client; rank-based
+  discards magnitude; ε already caps the max trust ratio).
+
 **Pending:**
 - **Response-to-reviewers letter** (Phase 6) + final Overleaf compile.
 - Overleaf sync pending: `FedAgain_classification.tex`, `biblio.bib` (9 new
