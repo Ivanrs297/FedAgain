@@ -148,17 +148,24 @@ and (B) the **PyTorch experiment codebase**. This file is the resume point.
 
 ## Currently running (as of 2026-07-18)
 
-**Nothing running.** The chained pipeline (ρ0.5/0.6 sweep → watcher → label-flip)
-finished cleanly: ledger at **552 completed, 0 failed**; `config.py` restored.
-- ρ=0.5/0.6 envelope-high: 192 runs (cr0.5 ×96, cr0.6 ×96) ✔ → 5-point curve done.
-- Label-flip: 72 runs (`pm-label_flip`) ✔ → analysis still pending.
+**R2.4 baseline sweep RUNNING** (`scripts/run_r24_baselines.sh`, detached).
+FedDyn/RFLPA/BOBA × 4 datasets × ρ{0.1,0.3,0.4,0.5,0.6} × 3 seeds = **180 runs**
+(ledger 552 → 732 expected). Feeds BOTH `tab:baseline_comparison` (ρ=0.3 subset)
+and `tab:degradation` (all 5 ρ). Resumable; the runner rewrites `config.py` and
+the script restores it (`git checkout config.py`) at the end.
 
 ```bash
-# sanity re-check (all should be idle / clean)
-pgrep -a python | grep -E "main.py|run_"          # expect nothing
-awk -F, 'NR>1{print $4}' results/experiment_ledger.csv | sort | uniq -c  # all "completed"
-git status --short config.py                       # expect clean
+# monitor
+pgrep -af run_r24_baselines.sh                     # sweep alive?
+tail -3 results/logs/r24_baselines_*.log           # current run
+expr $(wc -l < results/experiment_ledger.csv) - 1  # completed (target 732)
+awk -F, 'NR>1 && $4=="failed"' results/experiment_ledger.csv | wc -l  # want 0
+# when done: git status --short config.py should be clean (script restores it)
 ```
+
+After the sweep: extend `analyze_baselines.py` + `analyze_degradation_curve.py`
+STRATS to include FedDyn/RFLPA/BOBA, regenerate the two tables + figures, write
+the R2.4 paragraph (+ RAHFL paradigm-mismatch justification, cite AugHFL).
 
 ## Next steps
 
