@@ -138,23 +138,49 @@ and (B) the **PyTorch experiment codebase**. This file is the resume point.
   fold into `tab:baseline_comparison` + `tab:degradation` + write the paragraph;
   note BOBA's CIFAR degeneracy and RFLPA/BOBA's root-data requirement honestly.
 
+- R1.1c/R1.2 **convergence + sensitivity — WRITTEN (2026-07-18), ε numbers
+  pending.** Methods: new `subsubsec:convergence_analysis` (green) with
+  Proposition 1 (bounded trust weights ⇒ convex combination, interior of the
+  simplex; inherits weighted-FedAvg guarantees; cites li2019convergence /
+  li2020federated / wang2020tackling — 2 new bib entries) + formal ε
+  sensitivity bound (`eq:eps_sensitivity`: rel. perturbation ≤ ε/(e_min d_min);
+  E·D ~ 10²–10⁴ ⇒ ε ≤ 1e-2 is inert). Results: new
+  `subsec:convergence_empirical` (green) with `fig:convergence`
+  (convergence.png, 2×2, already in src-paper/): FedAgain fastest to 90% of
+  final acc (4.0 rounds, tied FedBN) + smooth curves; (α,β) framed via
+  `sec:trust_ablation`. **One red `[PENDING ε-sweep: X.X]` placeholder** in
+  that subsection — fill from `analysis/analyze_epsilon_sensitivity.py` after
+  the ε sweep lands (also add `epsilon_sensitivity.png` figure ref if desired).
+  Infra committed (fd77226): non-default ε tagged `eps<value>` in run_key
+  (default 1e-6 untagged → old keys valid), runner
+  `scripts/run_epsilon_sensitivity.py` (4 ds × ε{1e-8,1e-6,1e-4,1e-2,1} × 3
+  seeds; 1e-6 reuses completed runs → 48 new), chained via
+  `scripts/watch_and_run_epsilon.sh` (waits for R2.4 sweep, then runs, then
+  restores config.py). Expected ledger 732 → 780.
+
 **Pending:**
-- R1.1c/R1.2 — convergence + sensitivity. Plan: convergence curves (reuse
-  per-round data) + a weighted-FedAvg convergence *proposition* (writing, no
-  compute) + an ε sensitivity sweep (`FEDAGAIN_EPSILON` already parametrized;
-  small runner needed). (α,β) leans on the existing trust ablation.
 - **Response-to-reviewers letter** (Phase 6) + final Overleaf compile.
-- Overleaf sync pending: `FedAgain_classification.tex`, `biblio.bib` (7 new refs),
-  `baseline_comparison.png`, `rare_client_bias.png`, `degradation_curve.png`,
-  `label_flip.png`.
+- Overleaf sync pending: `FedAgain_classification.tex`, `biblio.bib` (9 new
+  refs), `baseline_comparison.png`, `rare_client_bias.png`,
+  `degradation_curve.png`, `label_flip.png`, `convergence.png`,
+  `epsilon_sensitivity.png` (regenerate after the ε sweep).
 
-## Currently running (as of 2026-07-18)
+## Currently running (as of 2026-07-18 ~21:30)
 
-**R2.4 baseline sweep RUNNING** (`scripts/run_r24_baselines.sh`, detached).
-FedDyn/RFLPA/BOBA × 4 datasets × ρ{0.1,0.3,0.4,0.5,0.6} × 3 seeds = **180 runs**
-(ledger 552 → 732 expected). Feeds BOTH `tab:baseline_comparison` (ρ=0.3 subset)
-and `tab:degradation` (all 5 ρ). Resumable; the runner rewrites `config.py` and
-the script restores it (`git checkout config.py`) at the end.
+**R2.4 baseline sweep RUNNING** (`scripts/run_r24_baselines.sh`, detached,
+relaunched 21:06 — the 4 earlier launches that evening were all externally
+killed mid-run with no error/OOM; at one point two instances ran concurrently.
+If it dies again with no DONE marker, just relaunch: it is resumable and
+`running`-status runs retry). FedDyn/RFLPA/BOBA × 4 datasets ×
+ρ{0.1,0.3,0.4,0.5,0.6} × 3 seeds = **180 runs** (ledger → 732 expected). Feeds
+BOTH `tab:baseline_comparison` (ρ=0.3 subset) and `tab:degradation` (all 5 ρ).
+The runner rewrites `config.py`; the script restores it at the end.
+
+**CHAINED: ε sensitivity sweep** (`scripts/watch_and_run_epsilon.sh`, detached
+watcher) auto-launches when the R2.4 sweep exits (48 new runs, ~3 h; ledger
+732 → 780), then restores config.py. After it: run
+`python analysis/analyze_epsilon_sensitivity.py` and fill the red
+`[PENDING ε-sweep]` placeholder in `subsec:convergence_empirical`.
 
 ```bash
 # monitor
@@ -177,10 +203,11 @@ the R2.4 paragraph (+ RAHFL paradigm-mismatch justification, cite AugHFL).
    into `tab:baseline_comparison` + `tab:degradation`, write the R2.4 paragraph +
    the RAHFL paradigm-mismatch justification (cite AugHFL, ICCV 2023). Flag BOBA's
    CIFAR degeneracy (needs n-f>c-1) and RFLPA/BOBA's server-root requirement.
-2. **R1.1c/R1.2 theory** (mostly no compute — run in parallel with R2.4's GPU
-   time): convergence curves (reuse `results/rounds/*.csv`) + weighted-FedAvg
-   convergence proposition (writing) + ε sensitivity sweep (small runner;
-   `FEDAGAIN_EPSILON` already parametrized) + (α,β) framed via the trust ablation.
+2. **R1.1c/R1.2 — only the ε numbers remain**: after the chained ε sweep, run
+   `analysis/analyze_epsilon_sensitivity.py` and replace the red
+   `[PENDING ε-sweep]` placeholder in `subsec:convergence_empirical` with the
+   measured max-spread (optionally add `epsilon_sensitivity.png` as a figure).
+   Everything else (proposition, ε bound, convergence subsection) is written.
 3. **Response-to-reviewers letter** (point-by-point; the `\revtag{Rx.y}` tags in
    the paper map each change to its comment) — Phase 6 deliverable.
 4. **Final Overleaf compile** + figure sync (see sync list above).
