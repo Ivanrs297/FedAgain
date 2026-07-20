@@ -57,6 +57,14 @@ FEDAGAIN_ALPHA = 1.0  # weight on benchmark error E_k (weighted_additive only)
 FEDAGAIN_BETA = 1.0   # weight on divergence D_k (weighted_additive only)
 FEDAGAIN_LOG_TRUST = False  # dump per-round trust scores to results/trust_scores/
 
+# Normalization mapping raw trust scores to aggregation weights (Reviewer 2.5).
+#   "sum_to_one" -> w = T / sum(T)                    (default / deployed)
+#   "softmax"    -> w = softmax(log T / tau)          (tau = FEDAGAIN_NORM_TEMPERATURE;
+#                   note tau=1 is mathematically identical to sum_to_one)
+#   "rank"       -> w proportional to the rank of T   (magnitude discarded)
+FEDAGAIN_NORM_MODE = "sum_to_one"
+FEDAGAIN_NORM_TEMPERATURE = 1.0
+
 # Training Configuration
 BATCH_SIZE = 32
 LEARNING_RATE = 0.01

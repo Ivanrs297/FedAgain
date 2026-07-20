@@ -385,6 +385,8 @@ if __name__ == "__main__":
         "trust_alpha": getattr(config, "FEDAGAIN_ALPHA", 1.0) if is_fedagain else "",
         "trust_beta": getattr(config, "FEDAGAIN_BETA", 1.0) if is_fedagain else "",
         "epsilon": getattr(config, "FEDAGAIN_EPSILON", 1e-6) if is_fedagain else "",
+        "norm_mode": getattr(config, "FEDAGAIN_NORM_MODE", "sum_to_one") if is_fedagain else "",
+        "norm_temperature": getattr(config, "FEDAGAIN_NORM_TEMPERATURE", 1.0) if is_fedagain else "",
         "seed": getattr(config, "SEED", 42),
     }
     tracker = ExperimentTracker(tracker_config, results_dir="results")
@@ -473,11 +475,16 @@ if __name__ == "__main__":
         alpha = getattr(config, 'FEDAGAIN_ALPHA', 1.0)
         beta = getattr(config, 'FEDAGAIN_BETA', 1.0)
         log_trust = getattr(config, 'FEDAGAIN_LOG_TRUST', False)
+        norm_mode = getattr(config, 'FEDAGAIN_NORM_MODE', 'sum_to_one')
+        norm_temp = getattr(config, 'FEDAGAIN_NORM_TEMPERATURE', 1.0)
         fedagain_strategy = FedAgainStrategy(
             epsilon=epsilon, mode=trust_mode, alpha=alpha, beta=beta,
-            log_trust=log_trust,
+            log_trust=log_trust, norm_mode=norm_mode,
+            norm_temperature=norm_temp,
         )
         print(f"  - FedAgain epsilon: {epsilon}")
+        print(f"  - FedAgain normalization: {norm_mode}"
+              + (f" (tau={norm_temp})" if norm_mode == "softmax" else ""))
         print(f"  - FedAgain trust mode: {trust_mode}"
               + (f" (alpha={alpha}, beta={beta})"
                  if trust_mode == "weighted_additive" else ""))

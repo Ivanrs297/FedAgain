@@ -79,14 +79,55 @@ def raw_trust_scores(benchmark_errors, divergences, mode="combined_mult",
     return 1.0 / (denom + epsilon)
 
 
-def normalize(trust):
+# Normalization strategies mapping raw trust scores to aggregation weights.
+# Reviewer 2.5 asked for alternatives to the deployed sum-to-one rule.
+NORM_MODES = (
+    "sum_to_one",  # w_k = T_k / sum_j T_j            (default / deployed)
+    "softmax",     # w_k = softmax(T_k / tau)         (needs a temperature)
+    "rank",        # w_k proportional to the rank of T_k (magnitude discarded)
+)
+
+
+def normalize(trust, mode="sum_to_one", temperature=1.0):
     """Normalize raw trust scores to aggregation weights summing to 1.
+
+    Args:
+        trust: sequence of raw trust scores T_k (higher = more trusted).
+        mode: one of :data:`NORM_MODES`.
+        temperature: softmax temperature tau; ignored by the other modes.
 
     Falls back to a uniform distribution if the total is non-positive
     (degenerate case, e.g. all-zero trust).
     """
     t = np.asarray(trust, dtype=np.float64)
-    total = float(t.sum())
-    if total <= 0.0 or not np.isfinite(total):
+    if not np.all(np.isfinite(t)):
         return np.ones_like(t) / len(t)
-    return t / total
+
+    if mode == "sum_to_one":
+        total = float(t.sum())
+        if total <= 0.0 or not np.isfinite(total):
+            return np.ones_like(t) / len(t)
+        return t / total
+
+    if mode == "softmax":
+        # Raw trust spans several orders of magnitude, so softmax is applied to
+        # the log scores; on the linear scale a single client saturates the
+        # distribution regardless of tau. Shift-invariant, hence the max-subtract.
+        z = np.log(np.maximum(t, np.finfo(np.float64).tiny)) / float(temperature)
+        z -= z.max()
+        e = np.exp(z)
+        s = float(e.sum())
+        if s <= 0.0 or not np.isfinite(s):
+            return np.ones_like(t) / len(t)
+        return e / s
+
+    if mode == "rank":
+        # Ranks 1..n by increasing trust, normalized: keeps the ordering but
+        # discards how far apart the scores are.
+        order = np.argsort(np.argsort(t))  # 0 = least trusted
+        r = order.astype(np.float64) + 1.0
+        return r / r.sum()
+
+    raise ValueError(
+        f"Unknown normalization mode '{mode}'. Expected one of {NORM_MODES}."
+    )

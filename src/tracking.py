@@ -38,7 +38,8 @@ from pathlib import Path
 KEY_FIELDS = [
     "strategy", "dataset", "data_distribution", "num_clients", "num_rounds",
     "local_epochs", "corrupt_clients", "corrupt_ratio", "corruption_severity",
-    "poison_mode", "trust_mode", "trust_alpha", "trust_beta", "epsilon", "seed",
+    "poison_mode", "trust_mode", "trust_alpha", "trust_beta", "epsilon",
+    "norm_mode", "norm_temperature", "seed",
 ]
 
 LEDGER_COLUMNS = [
@@ -86,6 +87,13 @@ def make_run_key(config: dict) -> str:
         eps = c.get("epsilon")
         if eps not in (None, "", 1e-6):
             parts.append(f"eps{eps}")
+        # Same convention for the normalization rule: only tag non-defaults so
+        # every pre-existing run key stays valid.
+        nm = c.get("norm_mode")
+        if nm not in (None, "", "sum_to_one"):
+            parts.append(f"nm-{nm}")
+            if nm == "softmax":
+                parts.append(f"tau{c.get('norm_temperature', '')}")
     if c.get("seed") is not None:
         parts.append(f"s{c['seed']}")
     raw = "_".join(p for p in parts if p != "")

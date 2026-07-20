@@ -28,17 +28,25 @@ class FedAgainStrategy:
 
     def __init__(self, epsilon: float = 1e-6, mode: str = "combined_mult",
                  alpha: float = 1.0, beta: float = 1.0,
-                 log_trust: bool = False):
+                 log_trust: bool = False, norm_mode: str = "sum_to_one",
+                 norm_temperature: float = 1.0):
         if mode not in trust_fns.TRUST_MODES:
             raise ValueError(
                 f"Unknown trust mode '{mode}'. "
                 f"Expected one of {trust_fns.TRUST_MODES}."
+            )
+        if norm_mode not in trust_fns.NORM_MODES:
+            raise ValueError(
+                f"Unknown normalization mode '{norm_mode}'. "
+                f"Expected one of {trust_fns.NORM_MODES}."
             )
         self.epsilon = epsilon
         self.mode = mode
         self.alpha = alpha
         self.beta = beta
         self.log_trust = log_trust
+        self.norm_mode = norm_mode
+        self.norm_temperature = norm_temperature
         self.global_params = None
         # Per-round trust records, populated when log_trust is True.
         # Each entry: (round, client, E_k, D_k, T_raw, T_norm).
@@ -81,7 +89,8 @@ class FedAgainStrategy:
             mode=self.mode, alpha=self.alpha, beta=self.beta,
             epsilon=self.epsilon,
         )
-        weights = trust_fns.normalize(raw)
+        weights = trust_fns.normalize(
+            raw, mode=self.norm_mode, temperature=self.norm_temperature)
 
         if self.log_trust:
             for k, (E_k, D_k, t_raw, t_norm) in enumerate(
