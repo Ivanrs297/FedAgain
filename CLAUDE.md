@@ -205,12 +205,49 @@ and (B) the **PyTorch experiment codebase**. This file is the resume point.
 sweep closed clean (732) and the chained epsilon sweep finished 2026-07-19 17:06
 (780). `config.py` restored by the watcher.
 
+## Currently running (2026-07-20 13:23, ~10 h)
+
+**Ablation re-run + normalization sweep** — `scripts/run_ablation_rerun.sh`,
+setsid-detached (PPID=1, own session, no TTY), 108 runs, ledger 780 -> 888.
+Phase 1 benchmark_only/divergence_only/additive (36); phase 2
+weighted_additive at (a,b) = (2,1),(1,2),(0.5,1) (36); phase 3 normalization
+softmax(tau=0.5), softmax(tau=2.0), rank (36). Restores config.py at the end.
+
+```bash
+pgrep -af run_ablation_rerun.sh
+expr $(wc -l < results/experiment_ledger.csv) - 1        # target 888
+grep -a "ablation-rerun" results/logs/ablation_rerun_*.log | tail -3
+```
+
+**Why the re-run (important):** the original 66-run ablation (2026-07-14) was
+**dropped from the ledger** when it was rebuilt (it survives only in
+`git show e274a61:results/experiment_ledger.csv`), and it is **not
+reproducible**: re-executing the same run key with the same seed gives
+different accuracy (0/12 identical, up to -9.75 pts on Jonathan). Seeds are set
+in `main.py:399` but cuDNN determinism is never pinned. That is why
+`tab:trust_ablation` (Jonathan 77.97) and `tab:baseline_comparison` (75.24)
+disagreed on FedAgain's own accuracy. combined_mult is deliberately NOT re-run:
+the ledger's 12 canonical runs are the ones feeding every other table.
+
+**TODO after it finishes:** regenerate `tab:trust_ablation` from the new data
+(all 5 modes + the wADD numbers the paper cites but never reports), add a
+normalization table for R2.5(iv), and add a per-round trust *distribution*
+figure for R2.5(v). Consider pinning `cudnn.deterministic` before the code
+release (R1.8 claims reproducibility).
+
 ## Next steps
 
-**All experiments and all reviewer-facing text are DONE.** Only two deliverables
-remain:
+Audited the whole manuscript against the verbatim reviewer text on 2026-07-20.
+Still open, in order:
 
-1. **Response-to-reviewers letter** (point-by-point; the `\revtag{Rx.y}` tags in
+0. **After the sweep:** the three analysis/figure items listed above, then
+   re-check that `tab:trust_ablation` and `tab:baseline_comparison` agree.
+1. **R1.6 / R1.7 are argumentative and unresolved.** R1.6 asked for a *shorter*
+   paper and the revision made it longer (only one `\revtag{R1.6}` exists);
+   R1.7 asked to de-emphasize CIFAR-10, but CIFAR still carries the headline
+   claim ("best accuracy on CIFAR-10") and sits in every table and mean. Both
+   need a decision: either restructure, or defend explicitly in the letter.
+2. **Response-to-reviewers letter** (point-by-point; the `\revtag{Rx.y}` tags in
    the paper map each change to its comment) — Phase 6 deliverable. Aggregate
    volume to cite against the editor's "too premature": ~780 tracked runs,
    2 attack models, 6 new baselines, formal convergence + ε analysis.
