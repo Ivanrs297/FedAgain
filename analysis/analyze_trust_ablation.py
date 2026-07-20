@@ -44,9 +44,26 @@ def corrupted_ids(seed, n=NUM_CLIENTS, ratio=CORRUPT_RATIO):
     return set(np.random.choice(n, int(n * ratio), replace=False).tolist())
 
 
-def load_ledger():
+def load_ledger(canonical_only=True):
+    """Load the ledger, keeping only the canonical trust-ablation runs.
+
+    The ledger also holds the label-flip sweep (``pm-``), the epsilon sweep
+    (``_eps``) and the normalization sweep (``nm-``), all of which share the
+    cr0.3/sev3 configuration. Folding them into the trust-mode table silently
+    shifts the numbers, so they are excluded here and analysed separately.
+    """
     path = os.path.join(RES, "experiment_ledger.csv")
     rows = list(csv.DictReader(open(path)))
+    if canonical_only:
+        rows = [r for r in rows
+                if r["status"] == "completed"
+                and r["strategy"] == "FedAgain"
+                and r["trust_mode"]
+                and r["corrupt_ratio"] == str(CORRUPT_RATIO)
+                and r["corruption_severity"] == "3"
+                and r["data_distribution"] == "non-iid-label"
+                and r["num_clients"] == str(NUM_CLIENTS)
+                and not any(t in r["run_key"] for t in ("pm-", "_eps", "nm-"))]
     for r in rows:
         r["final_accuracy"] = float(r["final_accuracy"])
         r["final_f1"] = float(r["final_f1"])
