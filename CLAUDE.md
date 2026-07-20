@@ -229,6 +229,21 @@ in `main.py:399` but cuDNN determinism is never pinned. That is why
 disagreed on FedAgain's own accuracy. combined_mult is deliberately NOT re-run:
 the ledger's 12 canonical runs are the ones feeding every other table.
 
+**KEY FINDING (2026-07-20) — the divergence term does not drive accuracy.**
+Mean accuracy over the 4 datasets at rho=0.3: E only **74.07**, E*D (deployed)
+73.71, E+D 71.52, D only 71.06. E-only and E*D are statistically
+indistinguishable; the July data said the same (74.46 vs 73.96) but the mean was
+never computed. D alone has a suppression ratio of ~1.0 (no discrimination).
+Mechanism: sum-to-one normalization is scale-invariant, so a D that is roughly
+constant across clients cancels and E*D reduces to E. Where D does covary with
+corruption it *sharpens* suppression (3 of 4 datasets: 3.31 vs 3.06 Daudon,
+4.42 vs 4.22 Jonathan, 1.63 vs 1.43 MyStone; CIFAR is the exception).
+**Paper reformulated accordingly** (sec:trust_ablation + the trust-positioning
+paragraph): E_k is the discriminative signal, D_k is a *consistency safeguard*
+that modulates sharpness, is free, and covers the case E_k cannot see (data
+agree with the global model but the update is aberrant). The paper now states
+explicitly that the accuracy is NOT attributed to the coupling.
+
 **TODO after it finishes:** regenerate `tab:trust_ablation` from the new data
 (all 5 modes + the wADD numbers the paper cites but never reports), add a
 normalization table for R2.5(iv), and add a per-round trust *distribution*
