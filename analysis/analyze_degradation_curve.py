@@ -41,7 +41,8 @@ os.makedirs(OUTDIR, exist_ok=True)
 DATASETS = ["DAUDON_MIX", "JONATHAN_MIX", "MYSTONE", "CIFAR10"]
 DS_LABEL = {"DAUDON_MIX": "A (Daudon)", "JONATHAN_MIX": "B (Jonathan)",
             "MYSTONE": "C (MyStone)", "CIFAR10": "CIFAR-10"}
-STRATS = ["FedAvg", "FedProx", "FedMedian", "Bulyan", "FedBN", "Scaffold", "MOON", "FedAgain"]
+STRATS = ["FedAvg", "FedProx", "FedMedian", "Bulyan", "FedBN", "Scaffold", "MOON",
+          "FedDyn", "RFLPA", "BOBA", "FedAgain"]
 RHOS = [0.1, 0.3, 0.4, 0.5, 0.6]
 
 # muted palette for baselines; FedAgain + FedMedian emphasized
@@ -52,6 +53,9 @@ STYLE = {
     "FedBN":     dict(color="#c9b8dd", lw=1.3, ls="-",  marker="o", ms=4, z=1),
     "Scaffold":  dict(color="#f0c38a", lw=1.3, ls="-",  marker="o", ms=4, z=1),
     "MOON":      dict(color="#c9a99b", lw=1.3, ls="-",  marker="o", ms=4, z=1),
+    "FedDyn":    dict(color="#d4c98a", lw=1.3, ls="-",  marker="o", ms=4, z=1),
+    "RFLPA":     dict(color="#9bc3c9", lw=1.3, ls="-",  marker="o", ms=4, z=1),
+    "BOBA":      dict(color="#d9a9c9", lw=1.3, ls="-",  marker="o", ms=4, z=1),
     "FedMedian": dict(color="#1f77b4", lw=2.6, ls="--", marker="s", ms=6, z=4),
     "FedAgain":  dict(color="#d62728", lw=3.0, ls="-",  marker="D", ms=7, z=5),
 }
@@ -64,7 +68,10 @@ def load():
             if (r["status"] == "completed" and r["dataset"] in DATASETS
                     and r["corruption_severity"] == "3"
                     and r["data_distribution"] == "non-iid-label"
-                    and r["strategy"] in STRATS):
+                    and r["strategy"] in STRATS
+                    # canonical image-corruption runs only: exclude the label-flip
+                    # poisoning sweep and the epsilon-sensitivity sweep
+                    and "pm-" not in r["run_key"] and "_eps" not in r["run_key"]):
                 try:
                     rho = float(r["corrupt_ratio"])
                 except ValueError:

@@ -1,0 +1,8 @@
+[watch-eps] 2026-07-18 21:16:31 watcher started; waiting for the R2.4 baseline sweep to finish...
+[watch-eps] 2026-07-19 13:16:41 run_r24_baselines.sh no longer running.
+[watch-eps] 2026-07-19 13:16:41 no run_baselines.py process alive; GPU is free.
+[watch-eps] 2026-07-19 13:16:41 ledger now has 732 completed runs (expected 732 if the R2.4 sweep finished cleanly).
+[watch-eps] 2026-07-19 13:16:41 launching epsilon sweep -> results/logs/epsilon_sweep_20260719_131641.log
+[watch-eps] 2026-07-19 17:06:23 epsilon sweep finished with exit code 0.
+[watch-eps] 2026-07-19 17:06:23 config.py restored
+[watch-eps] 2026-07-19 17:06:23 DONE. ledger now has 780 completed runs (expected 780 = 732 + 48).

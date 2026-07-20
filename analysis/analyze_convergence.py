@@ -69,6 +69,8 @@ def key_strategy_dataset(fname):
         return None  # skip trust-ablation variants
     if "pm-" in base:
         return None  # skip poisoning-mode variants (label-flip)
+    if "_eps" in base:
+        return None  # skip the epsilon-sensitivity sweep variants
     for ds in DATASETS:
         m = re.match(rf"([A-Za-z]+)_{ds}_", base)
         if m:

@@ -1,0 +1,11 @@
+[r24] START Sat Jul 18 08:53:24 PM CST 2026
+[r24] === rho=0.1 Sat Jul 18 08:53:24 PM CST 2026 ===
+[r24] START Sat Jul 18 09:06:11 PM CST 2026
+[r24] === rho=0.1 Sat Jul 18 09:06:11 PM CST 2026 ===
+[r24] === rho=0.3 Sat Jul 18 11:44:48 PM CST 2026 ===
+[r24] === rho=0.4 Sun Jul 19 02:49:56 AM CST 2026 ===
+[r24] === rho=0.5 Sun Jul 19 06:06:19 AM CST 2026 ===
+[r24] === rho=0.6 Sun Jul 19 09:34:53 AM CST 2026 ===
+[r24] config.py restored
+[r24] DONE Sun Jul 19 01:15:08 PM CST 2026
+[r24] results in results/experiment_ledger.csv (expect +180 -> 732 completed)

@@ -1,0 +1,163 @@
+[r24] START Sat Jul 18 08:53:24 PM CST 2026
+[r24] === rho=0.1 Sat Jul 18 08:53:24 PM CST 2026 ===
+/home/ivanrs/miniconda3/lib/python3.13/site-packages/imagecorruptions/corruptions.py:17: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_filename
+[tracker] run 'FedDyn_DAUDON_MIX_non-iid-label_k10_r10_e1_cr0.1_sev3_s42' already completed -> skipping (set EXPERIMENT_FORCE=1 to force a rerun).
+/home/ivanrs/miniconda3/lib/python3.13/site-packages/imagecorruptions/corruptions.py:17: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_filename
+[tracker] run 'FedDyn_DAUDON_MIX_non-iid-label_k10_r10_e1_cr0.1_sev3_s43' already completed -> skipping (set EXPERIMENT_FORCE=1 to force a rerun).
+/home/ivanrs/miniconda3/lib/python3.13/site-packages/imagecorruptions/corruptions.py:17: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_filename
+======================================================================
+FEDERATED LEARNING EXPERIMENT
+======================================================================
+Dataset: DAUDON_MIX
+Model: RESNET18
+Strategy: FedDyn
+Num Clients: 10
+Num Rounds: 10
+Local Epochs: 1
+Using device: cuda:0
+CUDA Device: NVIDIA GB10
+
+Loading and partitioning DAUDON_MIX dataset...
+Number of clients: 10
+  - Distribution: Non-IID (label skew, 2 classes per client)
+
+[Corrupted Clients Simulation]
+  Total clients: 10
+  Corrupted clients: 1 (10%)
+  Corrupted client IDs: [2]
+  Poison mode: image (severity=3)
+  Benign clients: 9 (90%)
+
+Dataset Information:
+  - Classes: 6
+  - Channels: 3
+  - Input size: 256x256
+  - Training samples per client: ~346
+  - Total test samples: 2400
+
+Training Configuration:
+  - Pretrained: True
+  - Batch size: 32
+  - Learning rate: 0.01
+  - Momentum: 0.9
+  - FedDyn: alpha=1.0, 62 trainable tensors (BN buffers averaged)
+
+======================================================================
+Starting Federated Learning with FedDyn...
+======================================================================
+
+--- Round 1/10 ---
+  Client 1: Loss=1.4938, Accuracy=0.4538, BenchErr=0.0000
+  Client 2: Loss=1.3505, Accuracy=0.5405, BenchErr=0.0000
+  Client 3: Loss=1.6461, Accuracy=0.3439, BenchErr=0.0000
+  Client 4: Loss=1.5232, Accuracy=0.4798, BenchErr=0.0000
+  Client 5: Loss=1.3752, Accuracy=0.5260, BenchErr=0.0000
+  Client 6: Loss=1.4507, Accuracy=0.4220, BenchErr=0.0000
+  Client 7: Loss=1.3106, Accuracy=0.4855, BenchErr=0.0000
+  Client 8: Loss=1.3137, Accuracy=0.5202, BenchErr=0.0000
+  Client 9: Loss=1.2559, Accuracy=0.5636, BenchErr=0.0000
+  Client 10: Loss=1.4241, Accuracy=0.4913, BenchErr=0.0000
+
+[Round 1] Global Model - Test Loss: 1.3089, Test Accuracy: 0.4954
+======================================================================
+
+--- Round 2/10 ---
+  Client 1: Loss=1.2510, Accuracy=0.6214, BenchErr=0.0000
+  Client 2: Loss=0.8191, Accuracy=0.7052, BenchErr=0.0000
+  Client 3: Loss=1.6816, Accuracy=0.3988, BenchErr=0.0000
+  Client 4: Loss=0.9699, Accuracy=0.6387, BenchErr=0.0000
+  Client 5: Loss=0.8229, Accuracy=0.6676, BenchErr=0.0000
+  Client 6: Loss=0.9417, Accuracy=0.6590, BenchErr=0.0000
+  Client 7: Loss=0.8837, Accuracy=0.6821, BenchErr=0.0000
+  Client 8: Loss=0.6900, Accuracy=0.7486, BenchErr=0.0000
+  Client 9: Loss=0.6098, Accuracy=0.8237, BenchErr=0.0000
+  Client 10: Loss=0.7229, Accuracy=0.7399, BenchErr=0.0000
+
+[Round 2] Global Model - Test Loss: 1.1310, Test Accuracy: 0.5958
+======================================================================
+
+--- Round 3/10 ---
+  Client 1: Loss=0.5856, Accuracy=0.7775, BenchErr=0.0000
+  Client 2: Loss=0.5597, Accuracy=0.7919, BenchErr=0.0000
+  Client 3: Loss=1.5770, Accuracy=0.4075, BenchErr=0.0000
+  Client 4: Loss=0.5033, Accuracy=0.8006, BenchErr=0.0000
+  Client 5: Loss=0.6368, Accuracy=0.7832, BenchErr=0.0000
+  Client 6: Loss=0.4598, Accuracy=0.8468, BenchErr=0.0000
+  Client 7: Loss=0.6870, Accuracy=0.7832, BenchErr=0.0000
+  Client 8: Loss=0.3676, Accuracy=0.8699, BenchErr=0.0000
+  Client 9: Loss=0.5214, Accuracy=0.8295, BenchErr=0.0000
+  Client 10: Loss=0.6523, Accuracy=0.7630, BenchErr=0.0000
+
+[Round 3] Global Model - Test Loss: 1.0365, Test Accuracy: 0.6450
+======================================================================
+
+--- Round 4/10 ---
+  Client 1: Loss=0.4698, Accuracy=0.8208, BenchErr=0.0000
+  Client 2: Loss=0.5508, Accuracy=0.8237, BenchErr=0.0000
+  Client 3: Loss=1.5913, Accuracy=0.4538, BenchErr=0.0000
+  Client 4: Loss=0.3836, Accuracy=0.8642, BenchErr=0.0000
+  Client 5: Loss=0.3871, Accuracy=0.8613, BenchErr=0.0000
+  Client 6: Loss=0.3901, Accuracy=0.8757, BenchErr=0.0000
+  Client 7: Loss=0.4167, Accuracy=0.8844, BenchErr=0.0000
+  Client 8: Loss=0.3617, Accuracy=0.8613, BenchErr=0.0000
+  Client 9: Loss=0.3352, Accuracy=0.8757, BenchErr=0.0000
+  Client 10: Loss=0.3699, Accuracy=0.8699, BenchErr=0.0000
+
+[Round 4] Global Model - Test Loss: 0.7358, Test Accuracy: 0.7554
+======================================================================
+
+--- Round 5/10 ---
+  Client 1: Loss=0.3902, Accuracy=0.8786, BenchErr=0.0000
+  Client 2: Loss=0.3568, Accuracy=0.8699, BenchErr=0.0000
+  Client 3: Loss=1.5107, Accuracy=0.4769, BenchErr=0.0000
+  Client 4: Loss=0.3261, Accuracy=0.8931, BenchErr=0.0000
+  Client 5: Loss=0.2577, Accuracy=0.9133, BenchErr=0.0000
+  Client 6: Loss=0.3789, Accuracy=0.8699, BenchErr=0.0000
+  Client 7: Loss=0.3401, Accuracy=0.8902, BenchErr=0.0000
+  Client 8: Loss=0.2316, Accuracy=0.9364, BenchErr=0.0000
+  Client 9: Loss=0.2038, Accuracy=0.9335, BenchErr=0.0000
+  Client 10: Loss=0.2937, Accuracy=0.9162, BenchErr=0.0000
+
+[Round 5] Global Model - Test Loss: 0.9190, Test Accuracy: 0.6592
+======================================================================
+
+--- Round 6/10 ---
+  Client 1: Loss=0.3387, Accuracy=0.8728, BenchErr=0.0000
+  Client 2: Loss=0.3287, Accuracy=0.8960, BenchErr=0.0000
+  Client 3: Loss=1.4154, Accuracy=0.5231, BenchErr=0.0000
+  Client 4: Loss=0.3558, Accuracy=0.8642, BenchErr=0.0000
+  Client 5: Loss=0.2908, Accuracy=0.9046, BenchErr=0.0000
+  Client 6: Loss=0.3520, Accuracy=0.8728, BenchErr=0.0000
+  Client 7: Loss=0.3510, Accuracy=0.8786, BenchErr=0.0000
+  Client 8: Loss=0.2109, Accuracy=0.9335, BenchErr=0.0000
+  Client 9: Loss=0.1711, Accuracy=0.9509, BenchErr=0.0000
+  Client 10: Loss=0.2853, Accuracy=0.9046, BenchErr=0.0000
+
+[Round 6] Global Model - Test Loss: 0.8792, Test Accuracy: 0.6846
+======================================================================
+
+--- Round 7/10 ---
+  Client 1: Loss=0.2691, Accuracy=0.9133, BenchErr=0.0000
+  Client 2: Loss=0.2279, Accuracy=0.9364, BenchErr=0.0000
+  Client 3: Loss=1.2456, Accuracy=0.5925, BenchErr=0.0000
+  Client 4: Loss=0.2223, Accuracy=0.9220, BenchErr=0.0000
+  Client 5: Loss=0.1702, Accuracy=0.9422, BenchErr=0.0000
+  Client 6: Loss=0.2130, Accuracy=0.9335, BenchErr=0.0000
+  Client 7: Loss=0.2493, Accuracy=0.9046, BenchErr=0.0000
+  Client 8: Loss=0.1918, Accuracy=0.9335, BenchErr=0.0000
+  Client 9: Loss=0.2362, Accuracy=0.9220, BenchErr=0.0000
+  Client 10: Loss=0.2364, Accuracy=0.9306, BenchErr=0.0000
+
+[Round 7] Global Model - Test Loss: 1.2228, Test Accuracy: 0.6392
+======================================================================
+
+--- Round 8/10 ---
+  Client 1: Loss=0.2664, Accuracy=0.9220, BenchErr=0.0000
+  Client 2: Loss=0.2704, Accuracy=0.9220, BenchErr=0.0000
+  Client 3: Loss=1.1300, Accuracy=0.6561, BenchErr=0.0000
+  Client 4: Loss=0.2342, Accuracy=0.9306, BenchErr=0.0000
+  Client 5: Loss=0.1725, Accuracy=0.9249, BenchErr=0.0000
+  Client 6: Loss=0.2062, Accuracy=0.9364, BenchErr=0.0000

@@ -39,7 +39,7 @@ DS_LABEL = {
     "CIFAR10": "CIFAR-10",
 }
 STRATS = ["FedAvg", "FedProx", "FedMedian", "Bulyan",
-          "FedBN", "Scaffold", "MOON", "FedAgain"]
+          "FedBN", "Scaffold", "MOON", "FedDyn", "RFLPA", "BOBA", "FedAgain"]
 CR, SEV, DIST = "0.3", "3", "non-iid-label"
 
 
@@ -49,7 +49,10 @@ def load():
         for r in csv.DictReader(f):
             if (r["status"] == "completed" and r["dataset"] in DATASETS
                     and r["corrupt_ratio"] == CR and r["corruption_severity"] == SEV
-                    and r["data_distribution"] == DIST and r["strategy"] in STRATS):
+                    and r["data_distribution"] == DIST and r["strategy"] in STRATS
+                    # keep only the canonical image-corruption runs: exclude the
+                    # label-flip poisoning sweep and the epsilon-sensitivity sweep
+                    and "pm-" not in r["run_key"] and "_eps" not in r["run_key"]):
                 agg[r["dataset"]][r["strategy"]]["acc"].append(float(r["final_accuracy"]) * 100)
                 agg[r["dataset"]][r["strategy"]]["f1"].append(float(r["final_f1"]) * 100)
     return agg
@@ -161,12 +164,13 @@ def main():
     plt.rcParams.update({"font.size": 15})
     fig, ax = plt.subplots(figsize=(13, 5.2))
     x = np.arange(len(DATASETS))
-    w = 0.10
+    w = 0.078
     # colorblind-safe-ish; FedAgain highlighted red
     palette = {
         "FedAvg": "#7f7f7f", "FedProx": "#8c9eb5", "FedMedian": "#1f77b4",
         "Bulyan": "#2ca02c", "FedBN": "#9467bd", "Scaffold": "#ff9e4a",
-        "MOON": "#8c564b", "FedAgain": "#d62728",
+        "MOON": "#8c564b", "FedDyn": "#bcbd22", "RFLPA": "#17becf",
+        "BOBA": "#e377c2", "FedAgain": "#d62728",
     }
     for i, s in enumerate(STRATS):
         means = [summary[(ds, s)][0] if (ds, s) in summary else 0 for ds in DATASETS]
@@ -178,7 +182,9 @@ def main():
     ax.set_xticks(x)
     ax.set_xticklabels([DS_LABEL[d] for d in DATASETS])
     ax.set_ylabel("Test accuracy (\\%)" if plt.rcParams["text.usetex"] else "Test accuracy (%)")
-    ax.set_ylim(45, 90)
+    # 0-based: FedDyn (MyStone) and BOBA (CIFAR-10, subspace degeneracy) fall
+    # far below the 45% floor used before the R2.4 baselines were added.
+    ax.set_ylim(0, 95)
     ax.grid(axis="y", ls=":", alpha=0.5)
     ax.legend(ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.16), frameon=False, fontsize=13)
     fig.tight_layout()

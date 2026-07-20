@@ -1,0 +1,12 @@
+strategy,final_acc_mean,rounds_to_90pct_final_mean
+FedAvg,70.40,4.50
+FedProx,71.14,4.50
+Bulyan,70.84,4.50
+FedBN,70.21,4.00
+Scaffold,63.35,6.00
+MOON,68.52,5.75
+FedDyn,65.67,5.50
+RFLPA,70.38,4.00
+BOBA,53.24,3.50
+FedMedian,74.88,4.75
+FedAgain,73.71,4.00

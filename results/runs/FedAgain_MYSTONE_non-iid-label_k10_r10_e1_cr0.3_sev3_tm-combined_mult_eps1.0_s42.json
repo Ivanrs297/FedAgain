@@ -1,0 +1,97 @@
+{
+  "run_key": "FedAgain_MYSTONE_non-iid-label_k10_r10_e1_cr0.3_sev3_tm-combined_mult_eps1.0_s42",
+  "status": "completed",
+  "host": "spark-a618",
+  "started_at": "2026-07-19 16:11:26",
+  "updated_at": "2026-07-19 16:16:12",
+  "config": {
+    "model": "RESNET18",
+    "strategy": "FedAgain",
+    "dataset": "MYSTONE",
+    "data_distribution": "non-iid-label",
+    "num_clients": 10,
+    "num_rounds": 10,
+    "local_epochs": 1,
+    "batch_size": 32,
+    "learning_rate": 0.01,
+    "use_pretrained": true,
+    "corrupt_clients": true,
+    "corrupt_ratio": 0.3,
+    "corruption_severity": 3,
+    "poison_mode": "image",
+    "trust_mode": "combined_mult",
+    "trust_alpha": 1.0,
+    "trust_beta": 1.0,
+    "epsilon": 1.0,
+    "seed": 42
+  },
+  "rounds_completed": 10,
+  "rounds": [
+    {
+      "round": 1,
+      "timestamp": "2026-07-19 16:11:53",
+      "accuracy": 0.3514879281302639,
+      "loss": 1.561616093984672
+    },
+    {
+      "round": 2,
+      "timestamp": "2026-07-19 16:12:22",
+      "accuracy": 0.49691184727681076,
+      "loss": 1.304724361215319
+    },
+    {
+      "round": 3,
+      "timestamp": "2026-07-19 16:12:49",
+      "accuracy": 0.5148792813026389,
+      "loss": 1.2548043451138906
+    },
+    {
+      "round": 4,
+      "timestamp": "2026-07-19 16:13:18",
+      "accuracy": 0.5008422234699607,
+      "loss": 1.2036444683160101
+    },
+    {
+      "round": 5,
+      "timestamp": "2026-07-19 16:13:47",
+      "accuracy": 0.506457046603032,
+      "loss": 1.1970833124858993
+    },
+    {
+      "round": 6,
+      "timestamp": "2026-07-19 16:14:15",
+      "accuracy": 0.5508141493542953,
+      "loss": 1.1384039617010526
+    },
+    {
+      "round": 7,
+      "timestamp": "2026-07-19 16:14:43",
+      "accuracy": 0.4823133071308254,
+      "loss": 1.2693502753973007
+    },
+    {
+      "round": 8,
+      "timestamp": "2026-07-19 16:15:13",
+      "accuracy": 0.5766423357664233,
+      "loss": 1.0787199206118072
+    },
+    {
+      "round": 9,
+      "timestamp": "2026-07-19 16:15:41",
+      "accuracy": 0.523862998315553,
+      "loss": 1.1617330126464367
+    },
+    {
+      "round": 10,
+      "timestamp": "2026-07-19 16:16:10",
+      "accuracy": 0.5682201010668164,
+      "loss": 1.0963687313986676
+    }
+  ],
+  "final_metrics": {
+    "accuracy": 0.5682201010668164,
+    "precision": 0.6215239885709186,
+    "recall": 0.5671951575656865,
+    "f1": 0.5580934128750087
+  }
+}
