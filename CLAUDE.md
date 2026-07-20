@@ -168,6 +168,30 @@ and (B) the **PyTorch experiment codebase**. This file is the resume point.
   softmax needs a tuned temperature and can collapse onto one client; rank-based
   discards magnitude; ε already caps the max trust ratio).
 
+- **R2.4 EXTRA BASELINES — DONE (2026-07-20).** 180-run sweep finished
+  (ledger 732). FedDyn/RFLPA/BOBA folded into `tab:baseline_comparison`
+  (3 violet rows) and `tab:degradation` (now 11 rows), plus a new
+  `subsubsec:r24_baselines` (violet) + RAHFL paradigm-mismatch paragraph;
+  4 bib refs added (acar2021feddyn, mai2024rflpa, peng2024boba, fang2023aughfl).
+  **Honest findings kept in the text:** FedDyn wins on Jonathan (77.6) but is
+  unstable on MyStone (39.9±12.3); BOBA collapses on CIFAR-10 (9.25%, its
+  n-f>c-1 condition is violated) so its "best drop" in the envelope table is an
+  artifact — flagged with a dagger footnote; RFLPA/BOBA both need a clean server
+  root set, FedAgain needs none. Claim softened: FedAgain is no longer "top-2 on
+  every dataset" (FedDyn/BOBA beat it on Jonathan) → now "never more than 2.5 pts
+  below the per-dataset leader" + #1 envelope accuracy (71.7).
+  ⚠ **Bug fixed while folding in:** the canonical cr0.3 selectors in
+  `analyze_baselines/degradation_curve/convergence` also matched the label-flip
+  (`pm-`) and ε-sweep (`_eps`) runs. All three now exclude both; this restored
+  FedAvg 70.7→78.9 and shifted the envelope numbers slightly (FedAgain drop
+  +9.0→+8.8, env 71.8→71.7; FedMedian +53.2→+53.1, env 61.4→61.8).
+
+- **R1.1c/R1.2 ε SENSITIVITY — DONE (2026-07-20).** 48-run sweep finished
+  (ledger 780). Accuracy is flat over eight decades of ε: max spread 3.5 pts
+  (A 1.4 / B 3.5 / C 2.0 / CIFAR 1.4), below the seed σ of 1.4–7.5 → ε is
+  numerically inert, as `eq:eps_sensitivity` predicts. Red placeholder replaced
+  and `fig:epsilon_sensitivity` added to `subsec:convergence_empirical`.
+
 **Pending:**
 - **Response-to-reviewers letter** (Phase 6) + final Overleaf compile.
 - Overleaf sync pending: `FedAgain_classification.tex`, `biblio.bib` (9 new
@@ -175,52 +199,26 @@ and (B) the **PyTorch experiment codebase**. This file is the resume point.
   `degradation_curve.png`, `label_flip.png`, `convergence.png`,
   `epsilon_sensitivity.png` (regenerate after the ε sweep).
 
-## Currently running (as of 2026-07-18 ~21:30)
+## Currently running (as of 2026-07-20)
 
-**R2.4 baseline sweep RUNNING** (`scripts/run_r24_baselines.sh`, detached,
-relaunched 21:06 — the 4 earlier launches that evening were all externally
-killed mid-run with no error/OOM; at one point two instances ran concurrently.
-If it dies again with no DONE marker, just relaunch: it is resumable and
-`running`-status runs retry). FedDyn/RFLPA/BOBA × 4 datasets ×
-ρ{0.1,0.3,0.4,0.5,0.6} × 3 seeds = **180 runs** (ledger → 732 expected). Feeds
-BOTH `tab:baseline_comparison` (ρ=0.3 subset) and `tab:degradation` (all 5 ρ).
-The runner rewrites `config.py`; the script restores it at the end.
-
-**CHAINED: ε sensitivity sweep** (`scripts/watch_and_run_epsilon.sh`, detached
-watcher) auto-launches when the R2.4 sweep exits (48 new runs, ~3 h; ledger
-732 → 780), then restores config.py. After it: run
-`python analysis/analyze_epsilon_sensitivity.py` and fill the red
-`[PENDING ε-sweep]` placeholder in `subsec:convergence_empirical`.
-
-```bash
-# monitor
-pgrep -af run_r24_baselines.sh                     # sweep alive?
-tail -3 results/logs/r24_baselines_*.log           # current run
-expr $(wc -l < results/experiment_ledger.csv) - 1  # completed (target 732)
-awk -F, 'NR>1 && $4=="failed"' results/experiment_ledger.csv | wc -l  # want 0
-# when done: git status --short config.py should be clean (script restores it)
-```
-
-After the sweep: extend `analyze_baselines.py` + `analyze_degradation_curve.py`
-STRATS to include FedDyn/RFLPA/BOBA, regenerate the two tables + figures, write
-the R2.4 paragraph (+ RAHFL paradigm-mismatch justification, cite AugHFL).
+**Nothing. All sweeps finished: ledger 780/780, 0 failed.** The R2.4 baseline
+sweep closed clean (732) and the chained epsilon sweep finished 2026-07-19 17:06
+(780). `config.py` restored by the watcher.
 
 ## Next steps
 
-1. **R2.4 — sweep the 3 new baselines** (FedDyn/RFLPA/BOBA; code done, commit
-   a961b5e). Run `scripts/run_baselines.py --strategies FedDyn RFLPA BOBA` across
-   the 4 datasets × seeds (and the ρ grid for the degradation table). Then fold
-   into `tab:baseline_comparison` + `tab:degradation`, write the R2.4 paragraph +
-   the RAHFL paradigm-mismatch justification (cite AugHFL, ICCV 2023). Flag BOBA's
-   CIFAR degeneracy (needs n-f>c-1) and RFLPA/BOBA's server-root requirement.
-2. **R1.1c/R1.2 — only the ε numbers remain**: after the chained ε sweep, run
-   `analysis/analyze_epsilon_sensitivity.py` and replace the red
-   `[PENDING ε-sweep]` placeholder in `subsec:convergence_empirical` with the
-   measured max-spread (optionally add `epsilon_sensitivity.png` as a figure).
-   Everything else (proposition, ε bound, convergence subsection) is written.
-3. **Response-to-reviewers letter** (point-by-point; the `\revtag{Rx.y}` tags in
-   the paper map each change to its comment) — Phase 6 deliverable.
-4. **Final Overleaf compile** + figure sync (see sync list above).
+**All experiments and all reviewer-facing text are DONE.** Only two deliverables
+remain:
+
+1. **Response-to-reviewers letter** (point-by-point; the `\revtag{Rx.y}` tags in
+   the paper map each change to its comment) — Phase 6 deliverable. Aggregate
+   volume to cite against the editor's "too premature": ~780 tracked runs,
+   2 attack models, 6 new baselines, formal convergence + ε analysis.
+2. **Single final Overleaf sync + compile**: `FedAgain_classification.tex`,
+   `biblio.bib` (13 new refs), and the figures `baseline_comparison.png`,
+   `rare_client_bias.png`, `degradation_curve.png`, `label_flip.png`,
+   `convergence.png`, `epsilon_sensitivity.png`, `trust_distribution.png`,
+   `trust_evolution.png` (all regenerated 2026-07-20 and already in `src-paper/`).
 
 ## Git / conventions
 
