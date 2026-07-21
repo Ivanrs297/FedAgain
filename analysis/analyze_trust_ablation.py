@@ -330,12 +330,87 @@ def trust_evolution():
     plt.close(fig)
 
 
+def trust_distribution_per_round(mode="combined_mult"):
+    """Per-round *distribution* of the client trust weights (Reviewer 2.5(v)).
+
+    The reviewer asked to "show the distribution of client trust scores over
+    rounds". ``trust_distribution`` aggregates over all rounds and
+    ``trust_evolution`` plots a single scalar ratio per round; neither shows the
+    spread. This draws, for every round, the box plot of the normalized weights
+    of the benign and of the corrupted clients side by side.
+    """
+    corr = corrupted_ids(44)
+    datasets = ["DAUDON_MIX", "JONATHAN_MIX", "MYSTONE", "CIFAR10"]
+    per_ds = {}
+    for ds in datasets:
+        f = os.path.join(RES, "trust_scores",
+                         f"trust_{ds}_non-iid-label_{mode}_c10_r10.csv")
+        if not os.path.exists(f):
+            continue
+        rounds = defaultdict(lambda: {"b": [], "c": []})
+        for row in csv.DictReader(open(f)):
+            r = int(row["round"])
+            key = "c" if int(row["client"]) in corr else "b"
+            rounds[r][key].append(float(row["trust_normalized"]))
+        per_ds[ds] = rounds
+    if not per_ds:
+        return
+
+    ncols = 2
+    nrows = (len(per_ds) + ncols - 1) // ncols
+    fig, axes = plt.subplots(nrows, ncols, figsize=(8.0 * ncols, 3.8 * nrows),
+                             squeeze=False)
+    axflat = axes.flatten()
+    for j, (ds, rounds) in enumerate(sorted(per_ds.items(),
+                                            key=lambda kv: datasets.index(kv[0]))):
+        ax = axflat[j]
+        xs = sorted(rounds)
+        w = 0.34
+        bp_b = ax.boxplot([rounds[r]["b"] for r in xs],
+                          positions=[x - w / 1.8 for x in xs], widths=w,
+                          patch_artist=True, showfliers=False,
+                          medianprops=dict(color="black", lw=1.4))
+        bp_c = ax.boxplot([rounds[r]["c"] for r in xs],
+                          positions=[x + w / 1.8 for x in xs], widths=w,
+                          patch_artist=True, showfliers=False,
+                          medianprops=dict(color="black", lw=1.4))
+        for b in bp_b["boxes"]:
+            b.set(facecolor="#1f77b4", alpha=0.75)
+        for b in bp_c["boxes"]:
+            b.set(facecolor="#d62728", alpha=0.75)
+        # uniform weight: the reference a corruption-blind aggregator would use
+        ax.axhline(1.0 / 10, color="k", ls="--", lw=1.2, alpha=0.7)
+        ax.set_xticks(xs)
+        ax.set_xticklabels([str(x) for x in xs], fontsize=12)
+        ax.set_title(ds, fontsize=17, fontweight="bold")
+        ax.set_xlabel("communication round", fontsize=14)
+        ax.set_ylabel("normalized trust weight", fontsize=14)
+        ax.tick_params(axis="y", labelsize=12)
+        ax.grid(axis="y", alpha=0.3)
+        if j == 0:
+            ax.legend([bp_b["boxes"][0], bp_c["boxes"][0]],
+                      ["benign clients", "corrupted clients"],
+                      fontsize=13, loc="upper left", framealpha=0.9)
+    for k in range(len(per_ds), len(axflat)):
+        axflat[k].set_visible(False)
+    fig.tight_layout()
+    out = os.path.join(OUT, "trust_distribution_rounds.png")
+    fig.savefig(out, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    srcpaper = os.path.join(ROOT, "jcr-fedagain", "src-paper")
+    if os.path.isdir(srcpaper):
+        import shutil
+        shutil.copy(out, os.path.join(srcpaper, "trust_distribution_rounds.png"))
+    print(f"  - trust_distribution_rounds.png ({mode})")
+
+
 def main():
     rows = load_ledger()
     agg, datasets, base_modes = table_accuracy(rows)
     convergence(rows, datasets, base_modes)
     supp = trust_distribution()
     trust_evolution()
+    trust_distribution_per_round()
     write_report(agg, supp)
     print(f"[analysis] wrote outputs to {OUT}")
     for f in sorted(os.listdir(OUT)):
