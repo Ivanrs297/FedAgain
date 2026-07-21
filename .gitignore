@@ -40,3 +40,6 @@ jcr-fedagain-backup-*/
 reviewers_comments.txt
 response_to_reviewers.md
 response_to_reviewers.html
+
+# Nested independent repo (public review package -> FedAgain-MedIA)
+to-reproduce/
