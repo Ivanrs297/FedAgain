@@ -267,6 +267,39 @@ envelope, rho>=0.5, and convergence speed, and needs no root data / no prior on
 the number of corrupted clients / no per-site tuning. The paper says this
 explicitly now; do not claim peak-accuracy superiority anywhere.
 
+## R1.6 condensation (2026-07-21)
+
+Main body **24 989 -> 20 271 words (-19%)**; 3 447 words relocated to four
+appendices rather than deleted, so nothing is lost to a reviewer who looks.
+
+- Sec 1 "Medical Context" + "FL in Healthcare": 1 253 -> 554 words. These are
+  the two blocks R1.6 named ("general introduction to AI in medical imaging",
+  "repeated discussions about privacy and heterogeneity").
+- Sec 3 "Preliminaries": the itemized FedAvg/FedProx/FedMedian/Bulyan
+  descriptions (the other block R1.6 named) -> `\ref{app:fl_rules}`, replaced by
+  one summary paragraph.
+- Sec 3 Dirichlet formalism + Algorithm 1 -> `\ref{app:partitioning}`; the
+  duplicate 587-word Dirichlet description in Sec 5 collapsed to a pointer
+  (it was described twice).
+- Severity / distributions / scalability studies -> `\ref{app:exploratory}`,
+  with an explicit **single-seed caveat**; the conclusion no longer cites the
+  "+8.29% at 20 clients" number as an established result.
+- CIFAR-10/MNIST -> `\ref{app:benchmarks}` (R1.7, previous entry).
+
+**Bibliography audited against authoritative sources.** No fabricated or
+misattributed entries. Fixed: `guerraoui2018hidden` was **missing its first
+author** (El Mhamdi) and used `and others`; `fang2022robust` was `@misc` with a
+`booktitle` (BibTeX ignores it -> would print with no venue) -> CVPR 2022;
+`hendrycks2019benchmarking` preprint -> ICLR 2019; `li2020learning` `@article`
+with no journal -> `@misc` (arXiv only); `acar2021feddyn` truncated name
+(Matas Navarro); NeurIPS entries `@article` -> `@inproceedings`.
+
+⚠ **Self-inflicted bug worth remembering:** collapsing the Sec 5 Dirichlet block
+deleted `tab:corruption_types` (the filter kept only figure lines). The paper is
+NOT in git, so it was not recoverable -- it was rebuilt from
+`src/dataset.py` (the 19 ImageNet-C corruption functions, severities 1-5).
+**Before any further block surgery on the .tex, copy the file first.**
+
 ## Next steps
 
 Audited the whole manuscript against the verbatim reviewer text on 2026-07-20.
