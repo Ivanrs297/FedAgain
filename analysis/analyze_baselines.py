@@ -31,7 +31,10 @@ SRCPAPER = os.path.join(ROOT, "jcr-fedagain", "src-paper")
 os.makedirs(OUTDIR, exist_ok=True)
 
 # Sweep selectors
-DATASETS = ["DAUDON_MIX", "JONATHAN_MIX", "MYSTONE", "CIFAR10"]
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from _datasets import datasets as _ds_sel, is_canonical  # R1.7 + canonical filter
+DATASETS = _ds_sel()
 DS_LABEL = {
     "DAUDON_MIX": "A (Daudon)",
     "JONATHAN_MIX": "B (Jonathan)",
@@ -50,9 +53,7 @@ def load():
             if (r["status"] == "completed" and r["dataset"] in DATASETS
                     and r["corrupt_ratio"] == CR and r["corruption_severity"] == SEV
                     and r["data_distribution"] == DIST and r["strategy"] in STRATS
-                    # keep only the canonical image-corruption runs: exclude the
-                    # label-flip poisoning sweep and the epsilon-sensitivity sweep
-                    and "pm-" not in r["run_key"] and "_eps" not in r["run_key"]):
+                    and is_canonical(r)):
                 agg[r["dataset"]][r["strategy"]]["acc"].append(float(r["final_accuracy"]) * 100)
                 agg[r["dataset"]][r["strategy"]]["f1"].append(float(r["final_f1"]) * 100)
     return agg
@@ -182,9 +183,9 @@ def main():
     ax.set_xticks(x)
     ax.set_xticklabels([DS_LABEL[d] for d in DATASETS])
     ax.set_ylabel("Test accuracy (\\%)" if plt.rcParams["text.usetex"] else "Test accuracy (%)")
-    # 0-based: FedDyn (MyStone) and BOBA (CIFAR-10, subspace degeneracy) fall
-    # far below the 45% floor used before the R2.4 baselines were added.
-    ax.set_ylim(0, 95)
+    # With CIFAR-10 present the axis must reach 0 to show BOBA's subspace
+    # degeneracy; on the clinical-only figure nothing falls below ~40%.
+    ax.set_ylim(0, 95) if "CIFAR10" in DATASETS else ax.set_ylim(35, 90)
     ax.grid(axis="y", ls=":", alpha=0.5)
     ax.legend(ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.16), frameon=False, fontsize=13)
     fig.tight_layout()

@@ -38,7 +38,10 @@ OUTDIR = os.path.join(ROOT, "results", "baselines")
 SRCPAPER = os.path.join(ROOT, "jcr-fedagain", "src-paper")
 os.makedirs(OUTDIR, exist_ok=True)
 
-DATASETS = ["DAUDON_MIX", "JONATHAN_MIX", "MYSTONE", "CIFAR10"]
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from _datasets import datasets as _ds_sel, is_canonical  # R1.7 + canonical filter
+DATASETS = _ds_sel()
 DS_LABEL = {"DAUDON_MIX": "A (Daudon)", "JONATHAN_MIX": "B (Jonathan)",
             "MYSTONE": "C (MyStone)", "CIFAR10": "CIFAR-10"}
 STRATS = ["FedAvg", "FedProx", "FedMedian", "Bulyan", "FedBN", "Scaffold", "MOON",
@@ -69,9 +72,7 @@ def load():
                     and r["corruption_severity"] == "3"
                     and r["data_distribution"] == "non-iid-label"
                     and r["strategy"] in STRATS
-                    # canonical image-corruption runs only: exclude the label-flip
-                    # poisoning sweep and the epsilon-sensitivity sweep
-                    and "pm-" not in r["run_key"] and "_eps" not in r["run_key"]):
+                    and is_canonical(r)):
                 try:
                     rho = float(r["corrupt_ratio"])
                 except ValueError:
@@ -129,7 +130,13 @@ def main():
 
     # ---- 2x2 degradation curves ----
     plt.rcParams.update({"font.size": 14})
-    fig, axes = plt.subplots(2, 2, figsize=(13, 8.5))
+    _n = len(DATASETS)
+    _nc = 3 if _n == 3 else 2
+    _nr = (_n + _nc - 1) // _nc
+    fig, axes = plt.subplots(_nr, _nc, figsize=(6.5 * _nc, 4.3 * _nr),
+                             squeeze=False)
+    for _k in range(_n, _nr * _nc):
+        axes.ravel()[_k].set_visible(False)
     for ax, ds in zip(axes.ravel(), DATASETS):
         for s in STRATS:
             xs, ys, es = [], [], []
@@ -153,7 +160,7 @@ def main():
         ax.set_ylabel("Test accuracy (%)")
         ax.set_xticks(RHOS)
         ax.grid(ls=":", alpha=0.5)
-    handles, labels = axes[0, 0].get_legend_handles_labels()
+    handles, labels = axes.ravel()[0].get_legend_handles_labels()
     # order legend with FedAgain/FedMedian first
     order = sorted(range(len(labels)),
                    key=lambda i: (labels[i] not in ("FedAgain", "FedMedian"), STRATS.index(labels[i])))

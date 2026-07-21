@@ -37,7 +37,10 @@ OUTDIR = os.path.join(ROOT, "results", "baselines")
 SRCPAPER = os.path.join(ROOT, "jcr-fedagain", "src-paper")
 os.makedirs(OUTDIR, exist_ok=True)
 
-DATASETS = ["DAUDON_MIX", "JONATHAN_MIX", "MYSTONE", "CIFAR10"]
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from _datasets import datasets as _ds_sel, is_canonical_key  # R1.7 + canonical filter
+DATASETS = _ds_sel()
 DS_LABEL = {"DAUDON_MIX": "A (Daudon)", "JONATHAN_MIX": "B (Jonathan)",
             "MYSTONE": "C (MyStone)", "CIFAR10": "CIFAR-10"}
 # Strategies to draw (only those with per-round data are plotted). FedAgain and
@@ -65,12 +68,8 @@ def key_strategy_dataset(fname):
     base = os.path.basename(fname)[:-4]
     if CFG not in base:
         return None
-    if base.startswith("FedAgain") and "tm-combined_mult" not in base:
-        return None  # skip trust-ablation variants
-    if "pm-" in base:
-        return None  # skip poisoning-mode variants (label-flip)
-    if "_eps" in base:
-        return None  # skip the epsilon-sensitivity sweep variants
+    if not is_canonical_key(base):
+        return None  # trust-ablation / label-flip / epsilon / normalization
     for ds in DATASETS:
         m = re.match(rf"([A-Za-z]+)_{ds}_", base)
         if m:
@@ -130,7 +129,13 @@ def main():
 
     # ---- 2x2 convergence curves ----
     plt.rcParams.update({"font.size": 14})
-    fig, axes = plt.subplots(2, 2, figsize=(13, 8.5))
+    _n = len(DATASETS)
+    _nc = 3 if _n == 3 else 2
+    _nr = (_n + _nc - 1) // _nc
+    fig, axes = plt.subplots(_nr, _nc, figsize=(6.5 * _nc, 4.3 * _nr),
+                             squeeze=False)
+    for _k in range(_n, _nr * _nc):
+        axes.ravel()[_k].set_visible(False)
     for ax, ds in zip(axes.ravel(), DATASETS):
         for s in strategies_present:
             rounds = agg.get((s, ds))
@@ -146,7 +151,7 @@ def main():
         ax.set_xlabel("Communication round")
         ax.set_ylabel("Test accuracy (%)")
         ax.grid(ls=":", alpha=0.5)
-    handles, labels = axes[0, 0].get_legend_handles_labels()
+    handles, labels = axes.ravel()[0].get_legend_handles_labels()
     order = sorted(range(len(labels)),
                    key=lambda i: (labels[i] not in ("FedAgain", "FedMedian"),
                                   list(STYLE).index(labels[i])))

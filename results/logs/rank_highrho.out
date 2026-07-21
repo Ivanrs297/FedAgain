@@ -1,0 +1,7 @@
+[rank-highrho] 2026-07-21 10:29:52 starting; ledger has 888 runs (expecting +24 = 912).
+[rank-highrho] 2026-07-21 10:29:52 rank at rho=0.5 (12 runs)
+[rank-highrho] 2026-07-21 11:37:19 rho=0.5 exit=0
+[rank-highrho] 2026-07-21 11:37:19 rank at rho=0.6 (12 runs)
+[rank-highrho] 2026-07-21 12:50:45 rho=0.6 exit=0
+[rank-highrho] 2026-07-21 12:50:45 config.py restored
+[rank-highrho] 2026-07-21 12:50:45 DONE. ledger 888 -> 912; failed=0

@@ -43,7 +43,10 @@ TRUSTDIR = os.path.join(ROOT, "results", "trust_scores")
 SRCPAPER = os.path.join(ROOT, "jcr-fedagain", "src-paper")
 os.makedirs(OUTDIR, exist_ok=True)
 
-DATASETS = ["DAUDON_MIX", "JONATHAN_MIX", "MYSTONE", "CIFAR10"]
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from _datasets import datasets as _ds_sel  # R1.7: clinical-only main text
+DATASETS = _ds_sel()
 DS_LABEL = {"DAUDON_MIX": "A (Daudon)", "JONATHAN_MIX": "B (Jonathan)",
             "MYSTONE": "C (MyStone)", "CIFAR10": "CIFAR-10"}
 SEED = 44

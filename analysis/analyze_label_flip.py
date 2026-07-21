@@ -36,7 +36,10 @@ OUTDIR = os.path.join(ROOT, "results", "baselines")
 SRCPAPER = os.path.join(ROOT, "jcr-fedagain", "src-paper")
 os.makedirs(OUTDIR, exist_ok=True)
 
-DATASETS = ["DAUDON_MIX", "JONATHAN_MIX", "MYSTONE", "CIFAR10"]
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from _datasets import datasets as _ds_sel, is_canonical  # R1.7 + canonical filter
+DATASETS = _ds_sel()
 DS_LABEL = {"DAUDON_MIX": "A (Daudon)", "JONATHAN_MIX": "B (Jonathan)",
             "MYSTONE": "C (MyStone)", "CIFAR10": "CIFAR-10"}
 STRATS = ["FedAvg", "FedMedian", "FedAgain"]
@@ -63,7 +66,12 @@ def load():
                 continue
             if rho not in RHOS:
                 continue
-            mode = "label_flip" if "pm-label_flip" in r["run_key"] else "image"
+            if "pm-label_flip" in r["run_key"]:
+                mode = "label_flip"
+            elif is_canonical(r):
+                mode = "image"
+            else:
+                continue  # eps / normalization / trust-ablation variants
             agg[(mode, r["dataset"], r["strategy"], rho)].append(
                 float(r["final_accuracy"]) * 100)
     return agg

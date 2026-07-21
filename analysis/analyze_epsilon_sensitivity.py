@@ -28,7 +28,10 @@ OUTDIR = os.path.join(ROOT, "results", "epsilon_sensitivity")
 SRCPAPER = os.path.join(ROOT, "jcr-fedagain", "src-paper")
 os.makedirs(OUTDIR, exist_ok=True)
 
-DATASETS = ["DAUDON_MIX", "JONATHAN_MIX", "MYSTONE", "CIFAR10"]
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from _datasets import datasets as _ds_sel  # R1.7: clinical-only main text
+DATASETS = _ds_sel()
 DS_LABEL = {"DAUDON_MIX": "A (Daudon)", "JONATHAN_MIX": "B (Jonathan)",
             "MYSTONE": "C (MyStone)", "CIFAR10": "CIFAR-10"}
 DS_COLOR = {"DAUDON_MIX": "#d62728", "JONATHAN_MIX": "#1f77b4",
@@ -48,7 +51,8 @@ def load():
                     or r["corrupt_ratio"] != "0.3"
                     or r["corruption_severity"] != "3"
                     or r["trust_mode"] != "combined_mult"
-                    or "pm-" in r["run_key"]):
+                    or "pm-" in r["run_key"]
+                    or "nm-" in r["run_key"]):
                 continue
             m = EPS_RE.search(r["run_key"])
             eps = float(m.group(1)) if m else 1e-6
