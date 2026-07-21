@@ -40,7 +40,7 @@ from src.dataset import load_dataset, partition_data_non_iid_label  # noqa: E402
 
 OUTDIR = os.path.join(ROOT, "results", "baselines")
 TRUSTDIR = os.path.join(ROOT, "results", "trust_scores")
-SRCPAPER = os.path.join(ROOT, "jcr-fedagain", "src-paper")
+SRCPAPER = os.path.join(ROOT, "jcr-fedagain", "src-paper", "images", "results")
 os.makedirs(OUTDIR, exist_ok=True)
 
 import sys as _sys, os as _os

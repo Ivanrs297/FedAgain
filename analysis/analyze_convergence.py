@@ -34,7 +34,7 @@ import matplotlib.pyplot as plt
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROUNDS_DIR = os.path.join(ROOT, "results", "rounds")
 OUTDIR = os.path.join(ROOT, "results", "baselines")
-SRCPAPER = os.path.join(ROOT, "jcr-fedagain", "src-paper")
+SRCPAPER = os.path.join(ROOT, "jcr-fedagain", "src-paper", "images", "results")
 os.makedirs(OUTDIR, exist_ok=True)
 
 import sys as _sys, os as _os

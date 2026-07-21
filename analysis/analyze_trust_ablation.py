@@ -397,7 +397,7 @@ def trust_distribution_per_round(mode="combined_mult"):
     out = os.path.join(OUT, "trust_distribution_rounds.png")
     fig.savefig(out, dpi=150, bbox_inches="tight")
     plt.close(fig)
-    srcpaper = os.path.join(ROOT, "jcr-fedagain", "src-paper")
+    srcpaper = os.path.join(ROOT, "jcr-fedagain", "src-paper", "images", "results")
     if os.path.isdir(srcpaper):
         import shutil
         shutil.copy(out, os.path.join(srcpaper, "trust_distribution_rounds.png"))

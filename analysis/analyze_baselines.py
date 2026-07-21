@@ -27,7 +27,7 @@ import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LEDGER = os.path.join(ROOT, "results", "experiment_ledger.csv")
 OUTDIR = os.path.join(ROOT, "results", "baselines")
-SRCPAPER = os.path.join(ROOT, "jcr-fedagain", "src-paper")
+SRCPAPER = os.path.join(ROOT, "jcr-fedagain", "src-paper", "images", "results")
 os.makedirs(OUTDIR, exist_ok=True)
 
 # Sweep selectors
