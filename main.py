@@ -882,9 +882,22 @@ if __name__ == "__main__":
         trust_dir = os.path.join("results", "trust_scores")
         os.makedirs(trust_dir, exist_ok=True)
         mode = getattr(config, "FEDAGAIN_TRUST_MODE", "combined_mult")
+        # The variant tags matter: without them a weighted_additive sweep over
+        # (alpha,beta), or a normalization sweep (which keeps trust_mode at
+        # combined_mult), silently overwrites the reference log of the mode it
+        # shares a name with.
+        tag = ""
+        if mode == "weighted_additive":
+            tag += f"_a{getattr(config, 'FEDAGAIN_ALPHA', 1.0)}"
+            tag += f"_b{getattr(config, 'FEDAGAIN_BETA', 1.0)}"
+        norm = getattr(config, "FEDAGAIN_NORM_MODE", "sum_to_one")
+        if norm != "sum_to_one":
+            tag += f"_nm-{norm}"
+            if norm == "softmax":
+                tag += f"_tau{getattr(config, 'FEDAGAIN_NORM_TEMPERATURE', 1.0)}"
         trust_path = os.path.join(
             trust_dir,
-            f"trust_{config.DATASET}_{config.DATA_DISTRIBUTION}_{mode}"
+            f"trust_{config.DATASET}_{config.DATA_DISTRIBUTION}_{mode}{tag}"
             f"_c{config.NUM_CLIENTS}_r{config.NUM_ROUNDS}.csv"
         )
         fedagain_strategy.save_trust_log(trust_path)
