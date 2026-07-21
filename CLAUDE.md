@@ -250,6 +250,44 @@ normalization table for R2.5(iv), and add a per-round trust *distribution*
 figure for R2.5(v). Consider pinning `cudnn.deterministic` before the code
 release (R1.8 claims reproducibility).
 
+## Currently running
+
+**Nothing. Ledger 912/912, 0 failed.** Last sweep: rank normalization at
+rho=0.5/0.6 (`scripts/run_rank_highrho.sh`), finished 2026-07-21 12:50.
+
+**R2.5 is now fully closed**, including the two sub-requests that were only
+argued before:
+- (iv) *alternative normalizations tested*: `subsubsec:norm_ablation` +
+  `tab:normalization`. sum_to_one / softmax(tau=0.5, 2.0) / rank at rho=0.3,
+  plus a rho=0.5/0.6 block. Key: softmax over log-scores at tau=1 IS
+  sum_to_one, so softmax is a 1-parameter generalization whose temperature is
+  the extra hyper-parameter at issue.
+- (v) *distribution over rounds*: `fig:trust_distribution_rounds` (per-round
+  box plot, benign vs corrupted), from `analyze_trust_ablation.py`.
+
+**Rank finding (resolved).** Rank beat sum_to_one at rho=0.3 (74.95 vs 73.71,
+and far lower variance: Jonathan +-0.9 vs +-7.5). Structural ceiling: rank
+weights cap the benign/corrupt suppression ratio at mean-rank ratio = 3.50
+(rho=0.3), 2.92 (0.5), 2.43 (0.6); sum_to_one has no ceiling and measures 4.42
+on Jonathan. Prediction tested and CONFIRMED: rank advantage +1.24 (rho=0.3) ->
+-0.52 (0.5) -> -0.81 (0.6), and at rho=0.6 rank's measured ratio is exactly
+2.43 on all four datasets (perfect ordering, saturated ceiling).
+
+**Two bugs found and fixed on 2026-07-21:**
+1. Trust-log filenames used only `trust_mode`, so the normalization sweep
+   (trust_mode stays combined_mult) overwrote the combined_mult reference logs
+   with rank weights. Restored from 301c9f1; `main.py` now tags alpha/beta and
+   the normalization mode. NOTE the filename still has no rho, so rho=0.5/0.6
+   rank logs overwrite each other (only the last survives).
+2. `analyze_trust_ablation.py` had no canonical filter, so the label-flip, eps
+   and normalization sweeps leaked into the trust-mode table.
+
+**Known weak spot (not yet addressed):** the scalability (5/10/20 clients) and
+severity (levels 1,2,4,5) sections are NOT in the ledger -- they come from the
+legacy `results/experiments.csv` and are **n=1, a single seed per point**.
+Given the measured non-reproducibility (up to ~10 pts), that is the softest
+evidence in the paper. Re-running with 3 seeds is ~36 runs (~3 h).
+
 ## Next steps
 
 Audited the whole manuscript against the verbatim reviewer text on 2026-07-20.
