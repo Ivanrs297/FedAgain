@@ -27,3 +27,10 @@ data/
 # OS
 .DS_Store
 Thumbs.db
+
+# Manuscript under review (MEDIA-D-26-01276): must never reach the public repo.
+# Only the structural README is tracked; the .tex, .bib and figures are not.
+jcr-fedagain/**
+!jcr-fedagain/README.md
+# Safety copies taken before structural edits of the .tex
+jcr-fedagain-backup-*/
