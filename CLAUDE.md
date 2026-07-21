@@ -237,6 +237,36 @@ legacy `results/experiments.csv` and are **n=1, a single seed per point**.
 Given the measured non-reproducibility (up to ~10 pts), that is the softest
 evidence in the paper. Re-running with 3 seeds is ~36 runs (~3 h).
 
+## R1.7 restructuring (2026-07-21) — CIFAR-10/MNIST moved to an appendix
+
+Main text is now **clinical-only (A/B/C)**; the benchmarks live in
+`\appendix` / `\ref{app:benchmarks}`, with four-dataset versions of every
+figure kept as `*_supp.png` in `src-paper/`.
+
+- `analysis/_datasets.py`: `FEDAGAIN_CLINICAL_ONLY=1` -> clinical figures and
+  tables; unset -> four-dataset (supplementary). Same code, both outputs.
+- Regenerate everything:
+  ```bash
+  FEDAGAIN_CLINICAL_ONLY=1 python analysis/analyze_{baselines,degradation_curve,convergence,label_flip,epsilon_sensitivity,rare_client_bias}.py
+  ```
+- **Key clinical numbers** (all recomputed, main text):
+  rho=0.3 mean: FedMedian 71.87 > FedAgain 70.05 > BOBA 67.90.
+  Envelope: **FedAgain 67.9 (#1)**, BOBA 65.0, RFLPA 64.5, FedMedian 59.5.
+  Drop 0.1->0.6: FedAgain +9.55; FedMedian +48.82 (collapses to 23.3/28.5/19.7).
+  Convergence: FedAgain 3.7 rounds to 90% of final (fastest), 70.1% final.
+  Ablation means: E 70.47, E*D 70.05, E+D 68.23, D 67.34; wADD 65.5-67.0.
+  Normalization: rank 71.87 > sum_to_one 70.05 at rho=0.3, but the gap erodes
+  to +0.14 (rho=0.5) and -0.07 (rho=0.6). NOTE: on clinical data rank's
+  advantage **vanishes but does not reverse** -- the reversal seen with CIFAR
+  (-0.52/-0.81) is a benchmark effect, and the paper now says so.
+  Label-flip: FedAgain 70.6 (flip) vs 70.1 (image); +16.8/+29.7/+6.6 over FedAvg.
+
+**Honest position on SOTA** (for the response letter): FedAgain does **not**
+lead at rho=0.3 -- FedMedian does, on both views. FedAgain leads the corruption
+envelope, rho>=0.5, and convergence speed, and needs no root data / no prior on
+the number of corrupted clients / no per-site tuning. The paper says this
+explicitly now; do not claim peak-accuracy superiority anywhere.
+
 ## Next steps
 
 Audited the whole manuscript against the verbatim reviewer text on 2026-07-20.
@@ -246,11 +276,11 @@ Still open, in order:
    `tab:baseline_comparison` now agree exactly on FedAgain (79.60 / 75.24 /
    55.32 / 84.66) because the ablation re-run is compared against the ledger's
    canonical combined_mult runs.
-1. **R1.6 / R1.7 are argumentative and unresolved.** R1.6 asked for a *shorter*
-   paper and the revision made it longer (only one `\revtag{R1.6}` exists);
-   R1.7 asked to de-emphasize CIFAR-10, but CIFAR still carries the headline
-   claim ("best accuracy on CIFAR-10") and sits in every table and mean. Both
-   need a decision: either restructure, or defend explicitly in the letter.
+1. ~~R1.7~~ **DONE 2026-07-21** (appendix restructuring above). **R1.6 remains
+   argumentative**: the reviewer asked for a *shorter* paper and the revision is
+   still longer overall, though the appendix move helps. The letter must
+   quantify what was cut from Sections 1 and 3 and concede the net honestly --
+   the same reviewers also asked for substantially more experiments.
 2. **Response-to-reviewers letter** (point-by-point; the `\revtag{Rx.y}` tags in
    the paper map each change to its comment) — Phase 6 deliverable. Aggregate
    volume to cite against the editor's "too premature": ~780 tracked runs,
