@@ -165,8 +165,8 @@ def main():
     order = sorted(range(len(labels)),
                    key=lambda i: (labels[i] not in ("FedAgain", "FedMedian"), STRATS.index(labels[i])))
     fig.legend([handles[i] for i in order], [labels[i] for i in order],
-               ncol=8, loc="upper center", bbox_to_anchor=(0.5, 1.02),
-               frameon=False, fontsize=12)
+               ncol=len(labels), loc="upper center", bbox_to_anchor=(0.5, 1.02),
+               frameon=False, fontsize=11)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     out = os.path.join(OUTDIR, "degradation_curve.png")
     fig.savefig(out, dpi=200, bbox_inches="tight")

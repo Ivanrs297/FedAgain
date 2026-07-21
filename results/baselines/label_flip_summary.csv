@@ -17,12 +17,6 @@ label_flip,MYSTONE,FedMedian,0.1,58.62,2.20,3
 label_flip,MYSTONE,FedMedian,0.3,58.43,1.86,3
 label_flip,MYSTONE,FedAgain,0.1,58.86,2.84,3
 label_flip,MYSTONE,FedAgain,0.3,57.03,2.84,3
-label_flip,CIFAR10,FedAvg,0.1,82.31,3.66,3
-label_flip,CIFAR10,FedAvg,0.3,70.36,11.66,3
-label_flip,CIFAR10,FedMedian,0.1,85.79,1.65,3
-label_flip,CIFAR10,FedMedian,0.3,72.28,3.69,3
-label_flip,CIFAR10,FedAgain,0.1,86.03,1.67,3
-label_flip,CIFAR10,FedAgain,0.3,84.63,1.79,3
 image,DAUDON_MIX,FedAvg,0.1,81.74,1.11,3
 image,DAUDON_MIX,FedAvg,0.3,78.92,0.80,3
 image,DAUDON_MIX,FedMedian,0.1,82.64,2.73,3
@@ -41,9 +35,3 @@ image,MYSTONE,FedMedian,0.1,58.69,1.85,3
 image,MYSTONE,FedMedian,0.3,57.83,1.38,3
 image,MYSTONE,FedAgain,0.1,58.84,1.55,3
 image,MYSTONE,FedAgain,0.3,55.32,3.33,3
-image,CIFAR10,FedAvg,0.1,86.12,1.52,3
-image,CIFAR10,FedAvg,0.3,82.61,1.65,3
-image,CIFAR10,FedMedian,0.1,85.64,1.80,3
-image,CIFAR10,FedMedian,0.3,83.89,1.41,3
-image,CIFAR10,FedAgain,0.1,86.22,1.59,3
-image,CIFAR10,FedAgain,0.3,84.66,1.62,3

@@ -187,7 +187,10 @@ def main():
     # degeneracy; on the clinical-only figure nothing falls below ~40%.
     ax.set_ylim(0, 95) if "CIFAR10" in DATASETS else ax.set_ylim(35, 90)
     ax.grid(axis="y", ls=":", alpha=0.5)
-    ax.legend(ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.16), frameon=False, fontsize=13)
+    # anchor by the legend's lower edge just above the axes frame so extra rows
+    # grow upward (out of the plot) instead of down into the bars
+    ax.legend(ncol=6, loc="lower center", bbox_to_anchor=(0.5, 1.01),
+              frameon=False, fontsize=12, columnspacing=1.4, handletextpad=0.5)
     fig.tight_layout()
     out = os.path.join(OUTDIR, "baseline_comparison.png")
     fig.savefig(out, dpi=200, bbox_inches="tight")

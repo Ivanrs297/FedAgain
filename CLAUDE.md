@@ -198,12 +198,26 @@ and (B) the **PyTorch experiment codebase**. This file is the resume point.
   numerically inert, as `eq:eps_sensitivity` predicts. Red placeholder replaced
   and `fig:epsilon_sensitivity` added to `subsec:convergence_empirical`.
 
-**Pending:**
-- **Response-to-reviewers letter** (Phase 6) + final Overleaf compile.
-- Overleaf sync pending: `FedAgain_classification.tex`, `biblio.bib` (9 new
-  refs), `baseline_comparison.png`, `rare_client_bias.png`,
-  `degradation_curve.png`, `label_flip.png`, `convergence.png`,
-  `epsilon_sensitivity.png` (regenerate after the ε sweep).
+**DONE 2026-07-21 (late):**
+- **Response-to-reviewers letter** written → `response_to_reviewers.md` (repo root),
+  point-by-point, colour-coded per reviewer, with exact Section numbers verified
+  against the .tex (§6.3 baselines / §6.4 degradation / §6.5 label-flip / §6.6
+  ablation / §6.6.1 normalization / §6.7 convergence+ε / §6.8 rare-client / §6.9
+  clinical / §6.10 overhead). Also `response_to_reviewers.html` for PDF export.
+  **Not committed** (under-review confidential) — see gitignore note below.
+- **Overleaf sync DONE by the user.**
+- **`to-reproduce/` reproduction package** created (README + `run_all_experiments.sh`
+  + requirements): environment, data-availability, one command per paper element,
+  paper-element→command index. For reviewer inspection. README + CLAUDE updated.
+- Several **paper polish passes** (not in git — paper is untracked): fixed an
+  unbalanced `figure*` that swallowed the whole conclusion+appendices into one
+  float; every active float now referenced; interleaved the 6 supp figures in
+  Appendix C (were `[p]` clumped); trimmed 7 over-long captions; appendix headings
+  now "Appendix A: Title" via `\@seccntformat`; appendices moved after references.
+- Fixed three figure-generation bugs (committed): `analyze_label_flip.py`
+  `subplots(1,4)`→`len(DATASETS)` (empty 4th clinical panel); `analyze_degradation_curve.py`
+  legend `ncol=8`→`len(labels)` (2-row overlap); `analyze_baselines.py` legend
+  3-row→2-row anchored above the axes.
 
 ## Currently running
 

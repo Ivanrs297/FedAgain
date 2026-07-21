@@ -34,3 +34,9 @@ jcr-fedagain/**
 !jcr-fedagain/README.md
 # Safety copies taken before structural edits of the .tex
 jcr-fedagain-backup-*/
+
+# Confidential peer-review material — must never reach the public repo while
+# the manuscript is under review (verbatim reviewer comments + response letter).
+reviewers_comments.txt
+response_to_reviewers.md
+response_to_reviewers.html

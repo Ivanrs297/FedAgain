@@ -1,0 +1,13 @@
+# FedAgain — reproduction dependencies (MEDIA-D-26-01276)
+#
+# Minimum versions (portable):
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+matplotlib>=3.7.0        # figure generation (analysis/*)
+#
+# Exact versions the camera-ready results were produced with:
+#   torch 2.12.0.dev+cu128, torchvision 0.26.0.dev+cu128,
+#   numpy 2.4.3, scikit-learn 1.8.0, matplotlib 3.x
+# No Flower / Ray / TensorFlow: every strategy is implemented from scratch in src/.

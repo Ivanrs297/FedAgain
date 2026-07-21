@@ -5,20 +5,29 @@ A simple and extensible federated learning project using PyTorch with CUDA suppo
 ## MedIA Revision Status (MEDIA-D-26-01276)
 
 This repo backs a *Medical Image Analysis* revision responding to two reviewers.
-Progress on the reviewer comments (full plan in `docs/REVISION_ROADMAP.md`; the
-paper marks each change with a `\revtag{Rx.y}` tag naming the comment it resolves):
+The paper marks each change with a `\revtag{Rx.y}` tag naming the comment it
+resolves, and the full point-by-point mapping is in
+[`response_to_reviewers.md`](response_to_reviewers.md).
 
-**Resolved (written in the paper):** R1.1a novelty vs trust/reputation FL · R1.1b/R2.5
-trust-score ablation (mult-vs-add) · R1.3/R1.6 robustness definition + condensation ·
-R1.4 clinical split/leakage · R1.5 extended baselines (FedBN/SCAFFOLD/MOON) + degradation
-curve · R1.7 MNIST/CIFAR de-emphasis · R1.8 code release + overhead · R2.1 novelty vs prior
-FedAgain · R2.2 rare/hard-client fairness.
+**All 15 reviewer sub-comments addressed** (~780 tracked runs). Fully resolved:
+R1.1a/b/c (novelty vs trust FL, mult-vs-add ablation, convergence Proposition 1) ·
+R1.2 theoretical analysis · R1.4 clinical split/leakage · R1.5 extended baselines
+(FedBN/SCAFFOLD/MOON) + degradation curve · R1.7 MNIST/CIFAR de-emphasis (→ appendix) ·
+R1.8 code release + overhead · R2.1 novelty vs prior FedAgain · R2.2 rare/hard-client
+fairness · R2.4 recent baselines (FedDyn/RFLPA/BOBA; RAHFL paradigm-mismatch) ·
+R2.5 full trust + normalization ablation.
+Addressed **by scoping** (position stated explicitly in the paper): R1.3/R2.3
+adversarial robustness — a label-flipping data-poisoning attack was added and the
+threat model was tightened to exclude gradient-space Byzantine attacks; R1.6 length —
+main body condensed −19 % with four appendices (net length conceded honestly).
 
-**In progress (code done, compute running):** R1.5/R2.4 high-corruption tail (ρ=0.5/0.6) ·
-R1.3/R2.3 label-flipping adversarial attack (auto-runs after the ρ sweep).
+### Reproducing the paper
 
-**Next:** R2.4 recent baselines (RFLPA/BOBA/RAHFL + FedDyn) · R1.1c/R1.2 convergence +
-ε/(α,β) sensitivity · response-to-reviewers letter + Overleaf compile.
+Every experiment, table and figure is reproducible via the guided package in
+**[`to-reproduce/`](to-reproduce/README.md)** — environment, data availability,
+one command per result, and a paper-element → command index. Public
+CIFAR-10/MNIST results reproduce from this repo alone; the two private clinical
+datasets are available on request (see the paper's data-availability statement).
 
 ## Features
 
@@ -26,7 +35,7 @@ R1.3/R2.3 label-flipping adversarial attack (auto-runs after the ρ sweep).
 - **Deep Learning**: PyTorch with CUDA support
 - **Model**: ResNet18 with ImageNet pretrained weights
 - **Datasets**: EMNIST, MNIST, CIFAR10 (easily extensible)
-- **Strategies**: FedAvg, FedProx, FedYogi, FedMedian, Bulyan, FedBN, Scaffold, MOON, FedAgain (custom)
+- **Strategies**: FedAvg, FedProx, FedYogi, FedMedian, Bulyan, FedBN, Scaffold, MOON, FedDyn, RFLPA, BOBA, FedAgain (custom)
 - **Simple**: Clean manual implementation, easy to understand and modify
 
 ## Project Structure

@@ -136,7 +136,10 @@ def main():
 
     # ---- Figure: grouped bars, one panel per dataset, rho=0.3 (stronger attack) ----
     plt.rcParams.update({"font.size": 13})
-    fig, axes = plt.subplots(1, 4, figsize=(15, 3.8), sharey=False)
+    _n = len(DATASETS)
+    fig, axes = plt.subplots(1, _n, figsize=(3.75 * _n, 3.8), sharey=False,
+                             squeeze=False)
+    axes = axes.ravel()
     rho_plot = 0.3
     for ax, ds in zip(axes, DATASETS):
         xs = np.arange(len(STRATS))
