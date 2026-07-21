@@ -206,9 +206,20 @@ and (B) the **PyTorch experiment codebase**. This file is the resume point.
   clinical / §6.10 overhead). Also `response_to_reviewers.html` for PDF export.
   **Not committed** (under-review confidential) — see gitignore note below.
 - **Overleaf sync DONE by the user.**
-- **`to-reproduce/` reproduction package** created (README + `run_all_experiments.sh`
-  + requirements): environment, data-availability, one command per paper element,
-  paper-element→command index. For reviewer inspection. README + CLAUDE updated.
+- **Reproduction package for reviewers** → its own PUBLIC repo
+  `git@github.com:Ivanrs297/FedAgain-MedIA.git` (pushed). Working copy is
+  `to-reproduce/`, an **independent nested git repo** with its own remote; the
+  private repo **ignores it** (`.gitignore: to-reproduce/`; commit 6c425ae) to
+  avoid an embedded-repo gitlink. It is self-contained (own copy of
+  `main.py`/`config.py`/`src`/`scripts`/`analysis`/`tests`) and ships the run
+  logs (`results/experiment_ledger.csv` + `rounds/` 912 + `trust_scores/` 24 +
+  `baselines/` figures, ~5.5 MB) so every paper table/figure regenerates OFFLINE
+  from the analysis scripts — no private data, no re-running. Verified: all .py
+  compile, tests 6/6 + 4/4, and analyze_{overhead,baselines,convergence}
+  regenerate matching numbers. Deps added to its requirements: Pillow,
+  imagecorruptions. To work on it: `cd to-reproduce` (separate repo). ⚠ Not yet
+  anonymized: run keys carry `DAUDON`/`JONATHAN` labels (metrics only, no images)
+  — confirm this is OK for the data agreement before sharing the public link.
 - Several **paper polish passes** (not in git — paper is untracked): fixed an
   unbalanced `figure*` that swallowed the whole conclusion+appendices into one
   float; every active float now referenced; interleaved the 6 supp figures in

@@ -23,11 +23,15 @@ main body condensed −19 % with four appendices (net length conceded honestly).
 
 ### Reproducing the paper
 
-Every experiment, table and figure is reproducible via the guided package in
-**[`to-reproduce/`](to-reproduce/README.md)** — environment, data availability,
-one command per result, and a paper-element → command index. Public
-CIFAR-10/MNIST results reproduce from this repo alone; the two private clinical
-datasets are available on request (see the paper's data-availability statement).
+A self-contained reproduction package for reviewers lives in its **own public
+repo, [`Ivanrs297/FedAgain-MedIA`](https://github.com/Ivanrs297/FedAgain-MedIA)**
+(working copy under `to-reproduce/`, which is an independent nested git repo and
+is intentionally *not* tracked by this private repo). It ships the code plus the
+logs of all ~780 runs, so every paper table and figure regenerates offline —
+environment, data availability, one command per result, and a
+paper-element → command index. Public CIFAR-10/MNIST results reproduce from the
+package alone; the two private clinical datasets are available on request (see
+the paper's data-availability statement).
 
 ## Features
 
