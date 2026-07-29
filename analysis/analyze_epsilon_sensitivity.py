@@ -30,7 +30,7 @@ os.makedirs(OUTDIR, exist_ok=True)
 
 import sys as _sys, os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
-from _datasets import datasets as _ds_sel  # R1.7: clinical-only main text
+from _datasets import datasets as _ds_sel, fig_name, srcpaper_dir, cifar_only  # R1.7 + CIFAR grid
 DATASETS = _ds_sel()
 DS_LABEL = {"DAUDON_MIX": "A (Daudon)", "JONATHAN_MIX": "B (Jonathan)",
             "MYSTONE": "C (MyStone)", "CIFAR10": "CIFAR-10"}
@@ -91,7 +91,7 @@ def main():
             print(f"  {ds:<14} {max(means) - min(means):.2f} pts")
 
     plt.rcParams.update({"font.size": 13})
-    fig, ax = plt.subplots(figsize=(7.5, 4.6))
+    fig, ax = plt.subplots(figsize=(5.6, 4.4) if cifar_only() else (7.5, 4.6))
     for ds in DATASETS:
         pts = sorted((e, m, s) for (d, e, m, s, n) in rows if d == ds)
         if not pts:
@@ -106,14 +106,16 @@ def main():
     ax.set_ylabel("Final test accuracy (%)")
     ax.set_ylim(0, 100)
     ax.grid(ls=":", alpha=0.5)
-    ax.legend(frameon=False, ncol=2, fontsize=11)
+    ax.legend(frameon=False, ncol=2, fontsize=11,
+              loc="lower right" if cifar_only() else "best")
     fig.tight_layout()
-    out = os.path.join(OUTDIR, "epsilon_sensitivity.png")
-    fig.savefig(out, dpi=200, bbox_inches="tight")
-    if os.path.isdir(SRCPAPER):
+    out = os.path.join(OUTDIR, fig_name("epsilon_sensitivity") + ".png")
+    fig.savefig(out, dpi=200, bbox_inches=None if cifar_only() else "tight")
+    _dst = srcpaper_dir()
+    if os.path.isdir(_dst):
         import shutil
-        shutil.copy(out, os.path.join(SRCPAPER, "epsilon_sensitivity.png"))
-        print("\nFigure copied to src-paper/epsilon_sensitivity.png")
+        shutil.copy(out, os.path.join(_dst, fig_name("epsilon_sensitivity") + ".png"))
+        print(f"\nFigure copied to {_dst}")
     print(f"Figure -> {out}")
 
 

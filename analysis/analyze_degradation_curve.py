@@ -40,7 +40,7 @@ os.makedirs(OUTDIR, exist_ok=True)
 
 import sys as _sys, os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
-from _datasets import datasets as _ds_sel, is_canonical  # R1.7 + canonical filter
+from _datasets import datasets as _ds_sel, is_canonical, fig_name, srcpaper_dir, cifar_only  # R1.7 + canonical filter + CIFAR grid
 DATASETS = _ds_sel()
 DS_LABEL = {"DAUDON_MIX": "A (Daudon)", "JONATHAN_MIX": "B (Jonathan)",
             "MYSTONE": "C (MyStone)", "CIFAR10": "CIFAR-10"}
@@ -129,11 +129,12 @@ def main():
         print(f"  {i}. {s:<11} drop={d:+.2f}   envelope-avg acc={env.get(s, float('nan')):.1f}{mark}")
 
     # ---- 2x2 degradation curves ----
-    plt.rcParams.update({"font.size": 14})
+    plt.rcParams.update({"font.size": 13 if cifar_only() else 14})
     _n = len(DATASETS)
-    _nc = 3 if _n == 3 else 2
+    _nc = 1 if _n == 1 else (3 if _n == 3 else 2)
     _nr = (_n + _nc - 1) // _nc
-    fig, axes = plt.subplots(_nr, _nc, figsize=(6.5 * _nc, 4.3 * _nr),
+    fig, axes = plt.subplots(_nr, _nc,
+                             figsize=(5.6, 4.4) if cifar_only() else (6.5 * _nc, 4.3 * _nr),
                              squeeze=False)
     for _k in range(_n, _nr * _nc):
         axes.ravel()[_k].set_visible(False)
@@ -165,15 +166,17 @@ def main():
     order = sorted(range(len(labels)),
                    key=lambda i: (labels[i] not in ("FedAgain", "FedMedian"), STRATS.index(labels[i])))
     fig.legend([handles[i] for i in order], [labels[i] for i in order],
-               ncol=len(labels), loc="upper center", bbox_to_anchor=(0.5, 1.02),
-               frameon=False, fontsize=11)
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
-    out = os.path.join(OUTDIR, "degradation_curve.png")
-    fig.savefig(out, dpi=200, bbox_inches="tight")
-    if os.path.isdir(SRCPAPER):
+               ncol=4 if cifar_only() else len(labels),
+               loc="upper center", bbox_to_anchor=(0.5, 0.995 if cifar_only() else 1.02),
+               frameon=False, fontsize=9 if cifar_only() else 11)
+    fig.tight_layout(rect=[0, 0, 1, 0.74] if cifar_only() else [0, 0, 1, 0.96])
+    out = os.path.join(OUTDIR, fig_name("degradation_curve") + ".png")
+    fig.savefig(out, dpi=200, bbox_inches=None if cifar_only() else "tight")
+    _dst = srcpaper_dir()
+    if os.path.isdir(_dst):
         import shutil
-        shutil.copy(out, os.path.join(SRCPAPER, "degradation_curve.png"))
-        print("\nFigure copied to src-paper/degradation_curve.png")
+        shutil.copy(out, os.path.join(_dst, fig_name("degradation_curve") + ".png"))
+        print(f"\nFigure copied to {_dst}")
     print(f"Figure -> {out}")
 
 

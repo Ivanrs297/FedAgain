@@ -38,7 +38,7 @@ os.makedirs(OUTDIR, exist_ok=True)
 
 import sys as _sys, os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
-from _datasets import datasets as _ds_sel, is_canonical  # R1.7 + canonical filter
+from _datasets import datasets as _ds_sel, is_canonical, fig_name, srcpaper_dir, cifar_only  # R1.7 + canonical filter + CIFAR grid
 DATASETS = _ds_sel()
 DS_LABEL = {"DAUDON_MIX": "A (Daudon)", "JONATHAN_MIX": "B (Jonathan)",
             "MYSTONE": "C (MyStone)", "CIFAR10": "CIFAR-10"}
@@ -137,8 +137,8 @@ def main():
     # ---- Figure: grouped bars, one panel per dataset, rho=0.3 (stronger attack) ----
     plt.rcParams.update({"font.size": 13})
     _n = len(DATASETS)
-    fig, axes = plt.subplots(1, _n, figsize=(3.75 * _n, 3.8), sharey=False,
-                             squeeze=False)
+    fig, axes = plt.subplots(1, _n, figsize=(5.6, 4.4) if cifar_only() else (3.75 * _n, 3.8),
+                             sharey=False, squeeze=False)
     axes = axes.ravel()
     rho_plot = 0.3
     for ax, ds in zip(axes, DATASETS):
@@ -157,15 +157,20 @@ def main():
         ax.grid(axis="y", ls=":", alpha=0.5)
         if ds == DATASETS[0]:
             ax.set_ylabel("Test accuracy (%)")
-    fig.suptitle(r"Robustness to a label-flipping poisoning attack "
-                 r"($\rho=0.3$, three seeds)", fontsize=14)
-    fig.tight_layout(rect=[0, 0, 1, 0.94])
-    out = os.path.join(OUTDIR, "label_flip.png")
-    fig.savefig(out, dpi=200, bbox_inches="tight")
-    if os.path.isdir(SRCPAPER):
+    if cifar_only():
+        # the grid subcaption in Appendix C carries the description
+        fig.tight_layout()
+    else:
+        fig.suptitle(r"Robustness to a label-flipping poisoning attack "
+                     r"($\rho=0.3$, three seeds)", fontsize=14)
+        fig.tight_layout(rect=[0, 0, 1, 0.94])
+    out = os.path.join(OUTDIR, fig_name("label_flip") + ".png")
+    fig.savefig(out, dpi=200, bbox_inches=None if cifar_only() else "tight")
+    _dst = srcpaper_dir()
+    if os.path.isdir(_dst):
         import shutil
-        shutil.copy(out, os.path.join(SRCPAPER, "label_flip.png"))
-        print("\nFigure copied to src-paper/label_flip.png")
+        shutil.copy(out, os.path.join(_dst, fig_name("label_flip") + ".png"))
+        print(f"\nFigure copied to {_dst}")
     print(f"Figure -> {out}")
 
 

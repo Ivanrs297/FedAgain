@@ -230,6 +230,35 @@ and (B) the **PyTorch experiment codebase**. This file is the resume point.
   legend `ncol=8`→`len(labels)` (2-row overlap); `analyze_baselines.py` legend
   3-row→2-row anchored above the axes.
 
+**DONE 2026-07-29:**
+- **Appendix C CIFAR benchmark grid — code DONE, Overleaf synced.** New
+  `FEDAGAIN_CIFAR_ONLY=1` mode in `analysis/_datasets.py`: `datasets()` returns
+  CIFAR-10 only, `fig_name()` appends `_cifar`, `srcpaper_dir()` targets
+  `images/supplementary/`. All 6 analysis scripts honour it (uniform
+  `figsize=(5.6,4.4)`, `font.size=13`, `bbox_inches=None` → identical 1120×880
+  px panels so the grid is harmonious). Generates `*_cifar.png` for
+  baseline/degradation/convergence/label_flip/epsilon/rare. In `app:benchmarks`
+  the panels show **only CIFAR** (the clinical datasets already appear in the
+  main-text figures — no repetition). Final layout after several iterations:
+  the robustness pair (degradation + convergence) is ONE `figure*` two-column
+  `\subcaptionbox`/`\label{fig:cifar_robust}`; the other four (baseline,
+  label-flip, rare, epsilon) are **isolated single-column `figure`s**
+  (`width=\columnwidth`) interleaved through the appendix text. ⚠ inside
+  `\subcaptionbox{...}[0.48\linewidth]{...}` the image MUST be
+  `width=\linewidth` (not `0.48\linewidth` — the box already redefines it).
+  Old `*_supp.png` remain but are unused by Appendix C now.
+- **Reviewer-response prose neutralized (2 passes).** ~12 passages that read as
+  a reply to reviewers were rewritten to natural manuscript prose (colour-coding,
+  `\revtag`, numbers, refs all preserved): §2 "are defended"→"main contributions
+  are"; §3.4.4 "worth stating plainly"/"precisely the intended"/"cannot induce
+  divergence"/"exactly as Eq. predicts"; §6.2 single-seed-vs-main-text contrast;
+  §7 "explicitly not claimed"; App C "sit apart"/"not the object of this study";
+  App D "Caveat on statistical strength"→"Exploratory scope"; §6.3 RAHFL "noted
+  here only to delimit scope"; §6.6 "it does not" stutter; §6.6 benchmark-error
+  ablation. Em dashes had already been stripped in an earlier pass. **Overleaf
+  synced by the user; paper is NOT in git (gitignored) — these .tex edits are not
+  committed.** Backups: `jcr-fedagain-backup-{prose,cifargrid,stylefix}-*`.
+
 ## Currently running
 
 **Nothing. Ledger 912/912, 0 failed.** Last sweep: rank normalization at

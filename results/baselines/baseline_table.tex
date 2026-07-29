@@ -3,22 +3,22 @@
 \centering
 {\color{blue}
 \caption{Extended baseline comparison under non-IID label skew with 30\% corrupted clients (severity~3), averaged over three seeds (42/43/44). Each cell reports mean accuracy\,$\pm$\,standard deviation (\%); the best value per dataset is shown in bold. FedAgain is the only method that ranks in the top two on every dataset and attains the best result on CIFAR-10, while outperforming all personalization- and drift-correction baselines (FedBN, MOON, Scaffold) on the clinical datasets. FedMedian is competitive but discards half of the client updates coordinate-wise and, like Bulyan, presupposes knowledge of the number of corrupted clients.\label{tab:baseline_comparison}}
-\begin{tabular}{lccc}
+\begin{tabular}{lc}
 \hline
-\textbf{Strategy} & \textbf{A (Daudon)} & \textbf{B (Jonathan)} & \textbf{C (MyStone)} \\
+\textbf{Strategy} & \textbf{CIFAR-10} \\
 \hline
-FedAvg & 78.92\,$\pm$\,0.80 & 68.49\,$\pm$\,4.05 & 51.58\,$\pm$\,3.68 \\
-FedProx & 80.32\,$\pm$\,2.05 & 69.46\,$\pm$\,2.58 & 52.65\,$\pm$\,3.22 \\
-FedMedian & \textbf{81.03\,$\pm$\,0.75} & 76.76\,$\pm$\,2.83 & \textbf{57.83\,$\pm$\,1.38} \\
-Bulyan & 77.75\,$\pm$\,0.71 & 71.72\,$\pm$\,4.80 & 53.06\,$\pm$\,1.81 \\
-FedBN & 77.17\,$\pm$\,3.98 & 71.31\,$\pm$\,1.52 & 52.18\,$\pm$\,1.12 \\
-Scaffold & 73.15\,$\pm$\,2.10 & 60.99\,$\pm$\,4.66 & 50.27\,$\pm$\,3.16 \\
-MOON & 79.58\,$\pm$\,1.23 & 65.81\,$\pm$\,4.56 & 53.36\,$\pm$\,0.83 \\
-FedDyn & 75.25\,$\pm$\,0.68 & \textbf{77.62\,$\pm$\,1.63} & 39.92\,$\pm$\,12.34 \\
-RFLPA & 79.08\,$\pm$\,1.27 & 71.03\,$\pm$\,3.88 & 49.52\,$\pm$\,2.32 \\
-BOBA & 78.40\,$\pm$\,2.69 & 76.75\,$\pm$\,0.40 & 48.55\,$\pm$\,2.29 \\
+FedAvg & 82.61\,$\pm$\,1.65 \\
+FedProx & 82.15\,$\pm$\,1.77 \\
+FedMedian & 83.89\,$\pm$\,1.41 \\
+Bulyan & 80.84\,$\pm$\,2.56 \\
+FedBN & 80.18\,$\pm$\,0.60 \\
+Scaffold & 69.00\,$\pm$\,1.78 \\
+MOON & 75.34\,$\pm$\,4.39 \\
+FedDyn & 69.90\,$\pm$\,2.24 \\
+RFLPA & 81.89\,$\pm$\,1.25 \\
+BOBA & 9.25\,$\pm$\,1.06 \\
 \hline
-\textbf{FedAgain} & 79.60\,$\pm$\,1.14 & 75.24\,$\pm$\,6.11 & 55.32\,$\pm$\,3.33 \\
+\textbf{FedAgain} & \textbf{84.66\,$\pm$\,1.62} \\
 \hline
 \end{tabular}
 }

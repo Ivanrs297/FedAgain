@@ -12,7 +12,7 @@ jcr-fedagain/
     ├── biblio.bib                    <- bibliography (129 entries)
     └── images/
         ├── results/                  <- GENERATED — do not edit by hand
-        ├── supplementary/            <- GENERATED — four-dataset (*_supp) variants
+        ├── supplementary/            <- GENERATED — four-dataset (*_supp) + CIFAR grid (*_cifar) variants
         ├── datasets/                 <- dataset sample images and corruption examples
         └── diagrams/                 <- conceptual schematics and legacy plots
 ```
@@ -39,11 +39,23 @@ python analysis/analyze_trust_ablation.py          # trust figures (clinical by 
 # supplementary: same six figures with CIFAR-10 included, saved as *_supp
 # (run the same commands with FEDAGAIN_CLINICAL_ONLY unset, then rename to
 #  *_supp.png and move to images/supplementary/)
+
+# Appendix C benchmark grid: CIFAR-10-only panels (one dataset per figure),
+# written straight to images/supplementary/ with a *_cifar suffix
+FEDAGAIN_CIFAR_ONLY=1 python analysis/analyze_baselines.py
+FEDAGAIN_CIFAR_ONLY=1 python analysis/analyze_degradation_curve.py
+FEDAGAIN_CIFAR_ONLY=1 python analysis/analyze_convergence.py
+FEDAGAIN_CIFAR_ONLY=1 python analysis/analyze_label_flip.py
+FEDAGAIN_CIFAR_ONLY=1 python analysis/analyze_epsilon_sensitivity.py
+FEDAGAIN_CIFAR_ONLY=1 python analysis/analyze_rare_client_bias.py
 ```
 
 Rationale for the split: Reviewer 1.7 asked that MNIST/CIFAR-10 be
 de-emphasized, so the main text reports the clinical datasets only and the
-benchmarks live in the appendix.
+benchmarks live in the appendix. The `*_cifar` panels are the ones assembled
+into the Appendix C benchmark grid: uniform 5.6×4.4-inch figures (`bbox_inches=None`
+so every panel shares identical dimensions) that show only the CIFAR-10 result,
+never re-plotting the clinical datasets already shown in the main text.
 
 ## Conventions
 

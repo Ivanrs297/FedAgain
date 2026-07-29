@@ -11,9 +11,20 @@ Both write to the same paths, so the caller is responsible for renaming, e.g.::
 
     python analysis/analyze_baselines.py                 # 4 datasets  -> *_supp
     FEDAGAIN_CLINICAL_ONLY=1 python analysis/analyze_baselines.py   # main text
+
+Set ``FEDAGAIN_CIFAR_ONLY=1`` to produce the CIFAR-10-only panels for the
+benchmark grid in Appendix~C (single dataset per figure). These are written with
+a ``_cifar`` suffix straight into ``src-paper/images/supplementary/`` so they do
+not clobber the clinical main-text figures, e.g.::
+
+    FEDAGAIN_CIFAR_ONLY=1 python analysis/analyze_baselines.py  # -> baseline_comparison_cifar.png
 """
 
 import os
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRCPAPER_RESULTS = os.path.join(_ROOT, "jcr-fedagain", "src-paper", "images", "results")
+SRCPAPER_SUPP = os.path.join(_ROOT, "jcr-fedagain", "src-paper", "images", "supplementary")
 
 CLINICAL = ["DAUDON_MIX", "JONATHAN_MIX", "MYSTONE"]
 BENCHMARK = ["CIFAR10"]
@@ -30,9 +41,26 @@ def clinical_only():
     return os.environ.get("FEDAGAIN_CLINICAL_ONLY", "") == "1"
 
 
+def cifar_only():
+    return os.environ.get("FEDAGAIN_CIFAR_ONLY", "") == "1"
+
+
 def datasets():
     """Datasets to analyse, in the paper's canonical order."""
+    if cifar_only():
+        return list(BENCHMARK)
     return list(CLINICAL) if clinical_only() else CLINICAL + BENCHMARK
+
+
+def fig_name(base):
+    """Output basename for a figure: append ``_cifar`` in CIFAR-only mode."""
+    return base + "_cifar" if cifar_only() else base
+
+
+def srcpaper_dir():
+    """Where the src-paper copy of the figure goes: the supplementary folder for
+    the CIFAR-only benchmark grid, the results folder otherwise."""
+    return SRCPAPER_SUPP if cifar_only() else SRCPAPER_RESULTS
 
 
 # --- canonical-run filter -------------------------------------------------

@@ -33,7 +33,7 @@ os.makedirs(OUTDIR, exist_ok=True)
 # Sweep selectors
 import sys as _sys, os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
-from _datasets import datasets as _ds_sel, is_canonical  # R1.7 + canonical filter
+from _datasets import datasets as _ds_sel, is_canonical, fig_name, srcpaper_dir, cifar_only  # R1.7 + canonical filter + CIFAR grid
 DATASETS = _ds_sel()
 DS_LABEL = {
     "DAUDON_MIX": "A (Daudon)",
@@ -162,8 +162,8 @@ def main():
     print(tex)
 
     # ---- grouped-bar figure (accuracy) ----
-    plt.rcParams.update({"font.size": 15})
-    fig, ax = plt.subplots(figsize=(13, 5.2))
+    plt.rcParams.update({"font.size": 13 if cifar_only() else 15})
+    fig, ax = plt.subplots(figsize=(5.6, 4.4) if cifar_only() else (13, 5.2))
     x = np.arange(len(DATASETS))
     w = 0.078
     # colorblind-safe-ish; FedAgain highlighted red
@@ -189,15 +189,16 @@ def main():
     ax.grid(axis="y", ls=":", alpha=0.5)
     # anchor by the legend's lower edge just above the axes frame so extra rows
     # grow upward (out of the plot) instead of down into the bars
-    ax.legend(ncol=6, loc="lower center", bbox_to_anchor=(0.5, 1.01),
-              frameon=False, fontsize=12, columnspacing=1.4, handletextpad=0.5)
-    fig.tight_layout()
-    out = os.path.join(OUTDIR, "baseline_comparison.png")
-    fig.savefig(out, dpi=200, bbox_inches="tight")
-    if os.path.isdir(SRCPAPER):
+    ax.legend(ncol=4 if cifar_only() else 6, loc="lower center", bbox_to_anchor=(0.5, 1.01),
+              frameon=False, fontsize=9 if cifar_only() else 12, columnspacing=1.0, handletextpad=0.4)
+    fig.tight_layout(rect=[0, 0, 1, 0.74] if cifar_only() else None)
+    out = os.path.join(OUTDIR, fig_name("baseline_comparison") + ".png")
+    fig.savefig(out, dpi=200, bbox_inches=None if cifar_only() else "tight")
+    _dst = srcpaper_dir()
+    if os.path.isdir(_dst):
         import shutil
-        shutil.copy(out, os.path.join(SRCPAPER, "baseline_comparison.png"))
-        print(f"Figure copied to src-paper/baseline_comparison.png")
+        shutil.copy(out, os.path.join(_dst, fig_name("baseline_comparison") + ".png"))
+        print(f"Figure copied to {_dst}")
     print(f"Figure written to {out}")
 
 

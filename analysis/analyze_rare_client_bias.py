@@ -45,7 +45,7 @@ os.makedirs(OUTDIR, exist_ok=True)
 
 import sys as _sys, os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
-from _datasets import datasets as _ds_sel  # R1.7: clinical-only main text
+from _datasets import datasets as _ds_sel, fig_name, srcpaper_dir, cifar_only  # R1.7 + CIFAR grid
 DATASETS = _ds_sel()
 DS_LABEL = {"DAUDON_MIX": "A (Daudon)", "JONATHAN_MIX": "B (Jonathan)",
             "MYSTONE": "C (MyStone)", "CIFAR10": "CIFAR-10"}
@@ -152,8 +152,8 @@ def main():
     # ---- figure: grouped mean trust per dataset for the 3 groups ----
     groups = ["benign-easy", "benign-hard", "corrupted"]
     colors = {"benign-easy": "#1f77b4", "benign-hard": "#ff9e4a", "corrupted": "#d62728"}
-    plt.rcParams.update({"font.size": 14})
-    fig, ax = plt.subplots(figsize=(11, 4.6))
+    plt.rcParams.update({"font.size": 13 if cifar_only() else 14})
+    fig, ax = plt.subplots(figsize=(5.6, 4.4) if cifar_only() else (11, 4.6))
     x = np.arange(len(DATASETS))
     w = 0.26
     # uniform-weight reference = 1/num_clients (equal trust to all)
@@ -168,14 +168,17 @@ def main():
     ax.set_xticklabels([DS_LABEL[d] for d in DATASETS])
     ax.set_ylabel("Mean normalized trust")
     ax.grid(axis="y", ls=":", alpha=0.5)
-    ax.legend(ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.15), frameon=False, fontsize=12)
-    fig.tight_layout()
-    out = os.path.join(OUTDIR, "rare_client_bias.png")
-    fig.savefig(out, dpi=200, bbox_inches="tight")
-    if os.path.isdir(SRCPAPER):
+    ax.legend(ncol=2 if cifar_only() else 4, loc="upper center",
+              bbox_to_anchor=(0.5, 0.995 if cifar_only() else 1.15),
+              frameon=False, fontsize=10 if cifar_only() else 12)
+    fig.tight_layout(rect=[0, 0, 1, 0.80] if cifar_only() else None)
+    out = os.path.join(OUTDIR, fig_name("rare_client_bias") + ".png")
+    fig.savefig(out, dpi=200, bbox_inches=None if cifar_only() else "tight")
+    _dst = srcpaper_dir()
+    if os.path.isdir(_dst):
         import shutil
-        shutil.copy(out, os.path.join(SRCPAPER, "rare_client_bias.png"))
-        print(f"\nFigure copied to src-paper/rare_client_bias.png")
+        shutil.copy(out, os.path.join(_dst, fig_name("rare_client_bias") + ".png"))
+        print(f"\nFigure copied to {_dst}")
     print(f"Figure -> {out}")
     print(f"CSV    -> {os.path.join(OUTDIR, 'rare_client_bias.csv')}")
 
