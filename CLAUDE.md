@@ -314,8 +314,10 @@ Then `scripts/round2/run_analysis.sh` writes `results_v2/analysis/*.txt`,
 - Pause: `touch results_v2/PAUSE` (stops after the current job). Resume:
   `rm results_v2/PAUSE; scripts/round2/launch.sh`.
 - Relaunch after a reboot/kill: `scripts/round2/launch.sh` (idempotent, flock;
-  completed jobs are skipped, failed ones retried up to 3x). A cron watchdog
-  (`*/15` + `@reboot` -> launch.sh) is NOT installed (needs the user).
+  completed jobs are skipped, failed ones retried up to 3x). Cron watchdog
+  INSTALLED by the user 2026-10-26 (`*/15` + `@reboot` -> launch.sh): it
+  relaunches automatically. Remove both crontab lines (`crontab -e`) once
+  `results_v2/QUEUE_COMPLETE` exists.
 - config.py is never rewritten by this queue (FEDAGAIN_CONFIG_OVERRIDES).
 
 **Next after the queue:** rewrite every number of the r2 tex from
