@@ -7,9 +7,11 @@ datasets only, and CIFAR-10/MNIST move to the supplementary material.
 
 Set ``FEDAGAIN_CLINICAL_ONLY=1`` to produce the main-text (clinical) outputs;
 leave it unset to produce the full four-dataset version for the supplement.
-Both write to the same paths, so the caller is responsible for renaming, e.g.::
+The four-dataset figures get a ``_supp`` suffix and go to
+``src-paper/images/supplementary/``, so they never overwrite the main-text
+figures of the same name, e.g.::
 
-    python analysis/analyze_baselines.py                 # 4 datasets  -> *_supp
+    python analysis/analyze_baselines.py                 # -> baseline_comparison_supp.png
     FEDAGAIN_CLINICAL_ONLY=1 python analysis/analyze_baselines.py   # main text
 
 Set ``FEDAGAIN_CIFAR_ONLY=1`` to produce the CIFAR-10-only panels for the
@@ -53,14 +55,17 @@ def datasets():
 
 
 def fig_name(base):
-    """Output basename for a figure: append ``_cifar`` in CIFAR-only mode."""
-    return base + "_cifar" if cifar_only() else base
+    """Output basename for a figure: ``_cifar`` in CIFAR-only mode, ``_supp``
+    in four-dataset mode, unchanged for the clinical main-text figures."""
+    if cifar_only():
+        return base + "_cifar"
+    return base if clinical_only() else base + "_supp"
 
 
 def srcpaper_dir():
-    """Where the src-paper copy of the figure goes: the supplementary folder for
-    the CIFAR-only benchmark grid, the results folder otherwise."""
-    return SRCPAPER_SUPP if cifar_only() else SRCPAPER_RESULTS
+    """Where the src-paper copy of the figure goes: the results folder for the
+    clinical main-text figures, the supplementary folder otherwise."""
+    return SRCPAPER_RESULTS if clinical_only() and not cifar_only() else SRCPAPER_SUPP
 
 
 # --- canonical-run filter -------------------------------------------------
