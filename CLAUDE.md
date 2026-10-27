@@ -259,9 +259,74 @@ and (B) the **PyTorch experiment codebase**. This file is the resume point.
   synced by the user; paper is NOT in git (gitignored) — these .tex edits are not
   committed.** Backups: `jcr-fedagain-backup-{prose,cifargrid,stylefix}-*`.
 
+## ROUND 2 (second MedIA review, received 2026-10) — START HERE
+
+Decision letter: major revision again, **due 17 Jan 2027** (aim ~8 Jan).
+Reviewer #3 (new, decisive): R3.1 real-world federated datasets + clinical
+evaluation, R3.2 no MNIST/CIFAR in abstract, R3.3 explicit code, R3.4 much
+shorter paper (move details to Supplementary), R3.5 "?" citations. Reviewer #6
+(minor): run-count mismatch, convergence proof with time-varying weights,
+abstract superiority claim, small numeric mismatches, label-flip protocol.
+
+**Paper:** working file `jcr-fedagain/src-paper/FedAgain_classification_r2.tex`
+(from `_clean`; round-1 colours dropped; round-2 changes orange via `\rii{}` +
+`\revtag{R3.x}`; macros `\nRuns`/`\nRunsClin`/`\nRunsBench`/`\codeurl`).
+P0 fixes done 2026-10-26 (abstract, run count, E_k/D_k transmission, algorithm
+box eta/eps, FedMedian-gap paragraph, label-flip protocol + honest-E_k
+limitation, unicode glyphs that rendered as empty cells). Numeric audit of
+every claim (28 items, v1 data) = checklist for the rewrite:
+`jcr-fedagain/round2/numeric_audit_2026-10-26.md`.
+**"?" citations cause:** no `.bbl` uploaded to Editorial Manager. Local LaTeX:
+`conda create -p <dir> -c conda-forge tectonic` then
+`tectonic -X compile --keep-intermediates FedAgain_classification_r2.tex`
+(gives the .bbl; check the EM-built PDF before approving).
+
+**Data problems found (2026-10-26) -> data version v2:**
+- MyStone loader (ImageFolder) also read `labels/` = binary segmentation
+  MASKS and `images/` full frames: v1 train 7084 / test 1781 instead of
+  4800 / 1200 patches. All v1 MyStone numbers are contaminated.
+- Released Daudon/Jonathan splits leak at specimen level (Jonathan 44/101
+  specimens on both sides; Daudon 26/198 groups, incl. `corr`/`bis` colour-
+  corrected copies; Jonathan `m1 - <id>` augmented copies).
+- v2 = `scripts/build_specimen_splits.py` -> `data/splits/*_v2.csv`
+  (specimen-disjoint, stratified 80/20, fixed seed 0; MyStone patches only)
+  + `KIDNEY_MULTISITE` (A Daudon / B Jonathan / C MyStone as real sites, 9
+  subtypes, `DATA_DISTRIBUTION="natural"`). Daudon specimen keys are
+  heuristic -> **data owners must check `data/splits/specimen_groups_review.csv`**;
+  if they correct it, rebuild splits and delete the DAUDON entries of
+  `results_v2/runs/` so the queue reruns them.
+- Select with `FEDAGAIN_DATA_VERSION=v2` (or `config.DATA_VERSION`); v2 runs go
+  to `results_v2/` (own ledger/runs/rounds/trust_scores), v1 stays in `results/`.
+  Manifests now hold per-subtype sensitivity/specificity, balanced accuracy,
+  confusion matrix, per-site accuracy.
+
 ## Currently running
 
-**Nothing. Ledger 912/912, 0 failed.** Last sweep: rank normalization at
+**Round-2 v2 queue (started 2026-10-26 19:26, ~3.5 days, 783 jobs):** the 684
+clinical v1 runs rebuilt key-for-key on v2 data + 99 multi-site runs, phases
+P1 canonical (99) > P2 multisite rho0.3 (33) > P3 envelope (396) > P4 label-flip
+(54) > P5 multisite rho0/0.6 (66) > P6 ablation > P7 normalization > P8 eps.
+Then `scripts/round2/run_analysis.sh` writes `results_v2/analysis/*.txt`,
+`results_v2/clinical/clinical_summary.md`, figures in
+`results_v2/paper_figures/` (paper images untouched).
+- Status: `cat results_v2/QUEUE_STATUS.md`; runner log
+  `results_v2/logs/queue_runner.log`; per-job logs `results_v2/logs/<key>.log`.
+- Pause: `touch results_v2/PAUSE` (stops after the current job). Resume:
+  `rm results_v2/PAUSE; scripts/round2/launch.sh`.
+- Relaunch after a reboot/kill: `scripts/round2/launch.sh` (idempotent, flock;
+  completed jobs are skipped, failed ones retried up to 3x). A cron watchdog
+  (`*/15` + `@reboot` -> launch.sh) is NOT installed (needs the user).
+- config.py is never rewritten by this queue (FEDAGAIN_CONFIG_OVERRIDES).
+
+**Next after the queue:** rewrite every number of the r2 tex from
+`results_v2` (use the audit checklist), add the multi-site + clinical-metrics
+subsection (R3.1), cut to ~12-14k words + separate Supplementary PDF (R3.4),
+clean code release with Zenodo DOI (R3.3), non-IID convergence theorem with
+time-varying weights (R6), response letter.
+
+## Previously (v1)
+
+**Ledger 912/912, 0 failed.** Last sweep: rank normalization at
 rho=0.5/0.6 (`scripts/run_rank_highrho.sh`), finished 2026-07-21 12:50.
 
 **R2.5 is now fully closed**, including the two sub-requests that were only
