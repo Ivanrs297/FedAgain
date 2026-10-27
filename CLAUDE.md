@@ -319,6 +319,17 @@ Then `scripts/round2/run_analysis.sh` writes `results_v2/analysis/*.txt`,
   relaunches automatically. Remove both crontab lines (`crontab -e`) once
   `results_v2/QUEUE_COMPLETE` exists.
 - config.py is never rewritten by this queue (FEDAGAIN_CONFIG_OVERRIDES).
+- **2026-10-27: phase P9 added (48 jobs, 831 total), runs right after P3.**
+  P2 showed FedAgain LAST on the natural multi-site federation (37.9% vs
+  FedMedian 50.5%; site A 63 / B 19 / C 22): sites whose domain the global
+  model fits worse report a higher E_k and get treated as corrupted (site A
+  takes 61-68% of the weight with 40% of the data). User chose option B:
+  trust/data-size mixing `w = (1-lambda)*trust + lambda*n_k/n`
+  (`FEDAGAIN_MIX_LAMBDA`, run-key tag `_mix<l>`, excluded from every canonical
+  selector). P9 = lambda {0.3,0.5} x (multi-site rho {0,0.3} + clinical rho
+  {0.3,0.6}) x 3 seeds. Results: section 4 of
+  `results_v2/clinical/clinical_summary.md`. The runner now re-reads
+  queue.json every iteration (append jobs with build_queue.py, no restart).
 
 **Next after the queue:** rewrite every number of the r2 tex from
 `results_v2` (use the audit checklist), add the multi-site + clinical-metrics
