@@ -39,7 +39,8 @@ MAX_ATTEMPTS = 3
 JOB_TIMEOUT_S = 3 * 3600
 PHASE_NAMES = {
     "P1": "canonical table (rho=0.3)", "P2": "multi-site canonical (rho=0.3)",
-    "P3": "degradation envelope", "P4": "label-flip attack",
+    "P3": "degradation envelope", "P9": "trust/data-size mixing (lambda)",
+    "P4": "label-flip attack",
     "P5": "multi-site envelope (rho 0 / 0.6)", "P6": "trust ablation",
     "P7": "normalization", "P8": "epsilon sweep",
 }
@@ -147,6 +148,9 @@ def main():
             write_status(queue, state, note="(PAUSED)")
             print(f"[{now()}] PAUSE file present, stopping", flush=True)
             return
+        # Re-read the queue every iteration so jobs appended by build_queue.py
+        # are picked up without restarting the runner.
+        queue = load_json(QUEUE, queue)
         # Next job: first not-completed job with the fewest attempts, so failed
         # jobs are retried only after every fresh job has had its turn.
         todo = [j for j in queue if not is_completed(j["key"])

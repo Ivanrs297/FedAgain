@@ -65,7 +65,7 @@ def load_ledger(canonical_only=True):
                 and r["corruption_severity"] == "3"
                 and r["data_distribution"] == "non-iid-label"
                 and r["num_clients"] == str(NUM_CLIENTS)
-                and not any(t in r["run_key"] for t in ("pm-", "_eps", "nm-"))]
+                and not any(t in r["run_key"] for t in ("pm-", "_eps", "nm-", "_mix"))]
     for r in rows:
         r["final_accuracy"] = float(r["final_accuracy"])
         r["final_f1"] = float(r["final_f1"])

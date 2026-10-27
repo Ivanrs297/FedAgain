@@ -10,6 +10,10 @@ Phase order (most important first, so a partial run is already useful):
   P6  trust ablation       FedAgain trust modes
   P7  normalization        FedAgain sum_to_one / softmax / rank
   P8  epsilon sweep
+  P9  trust/data-size mixing  FedAgain lambda in {0.3, 0.5}: multi-site
+      rho in {0, 0.3}, clinical rho in {0.3, 0.6}                     (48)
+      Runs right after P3 (see ORDER): added 2026-10-27 after P2 showed
+      FedAgain over-weighting site A under real domain shift.
 
 P1, P3, P4, P6-P8 replicate EXACTLY the 684 clinical v1 runs: each job is
 rebuilt from its v1 manifest (results/runs/*.json) and its run key is checked
@@ -36,6 +40,11 @@ STRATEGIES = ["FedAvg", "FedProx", "FedMedian", "Bulyan", "FedBN", "Scaffold",
 SEEDS = (42, 43, 44)
 MULTISITE_P2 = (0.3,)
 MULTISITE_P5 = (0.0, 0.6)
+MIX_LAMBDAS = (0.3, 0.5)
+MIX_MULTISITE_RHOS = (0.0, 0.3)
+MIX_CLINICAL_RHOS = (0.3, 0.6)
+# Execution order of the phases (P9 was added later but runs after P3).
+ORDER = ["P1", "P2", "P3", "P9", "P4", "P5", "P6", "P7", "P8"]
 
 
 def tracker_config(o):
@@ -53,13 +62,15 @@ def tracker_config(o):
         "epsilon": o["FEDAGAIN_EPSILON"] if fa else "",
         "norm_mode": o["FEDAGAIN_NORM_MODE"] if fa else "",
         "norm_temperature": o["FEDAGAIN_NORM_TEMPERATURE"] if fa else "",
+        "mix_lambda": o["FEDAGAIN_MIX_LAMBDA"] if fa else "",
         "seed": o["SEED"],
     }
 
 
 def overrides(strategy, dataset, distribution, rho, seed, poison="image",
               trust_mode="combined_mult", alpha=1.0, beta=1.0, eps=1e-6,
-              norm="sum_to_one", tau=1.0, clients=10, rounds=10, epochs=1, severity=3):
+              norm="sum_to_one", tau=1.0, mix=0.0, clients=10, rounds=10, epochs=1,
+              severity=3):
     """Complete config override set: every key a run depends on is explicit, so
     nothing leaks from whatever state config.py is in."""
     return {
@@ -69,7 +80,7 @@ def overrides(strategy, dataset, distribution, rho, seed, poison="image",
         "CORRUPTION_SEVERITY": severity, "POISON_MODE": poison, "LABEL_FLIP_RATIO": 1.0,
         "FEDAGAIN_TRUST_MODE": trust_mode, "FEDAGAIN_ALPHA": alpha, "FEDAGAIN_BETA": beta,
         "FEDAGAIN_EPSILON": eps, "FEDAGAIN_NORM_MODE": norm,
-        "FEDAGAIN_NORM_TEMPERATURE": tau,
+        "FEDAGAIN_NORM_TEMPERATURE": tau, "FEDAGAIN_MIX_LAMBDA": mix,
         "FEDAGAIN_LOG_TRUST": strategy == "FedAgain",
         "SEED": seed,
     }
@@ -98,6 +109,8 @@ def from_v1_manifest(m):
 
 
 def phase_of(o):
+    if o["FEDAGAIN_MIX_LAMBDA"] > 0:
+        return "P9"
     if o["DATASET"] == "KIDNEY_MULTISITE":
         return "P2" if o["CORRUPT_CLIENT_RATIO"] in MULTISITE_P2 else "P5"
     if o["POISON_MODE"] != "image":
@@ -134,7 +147,17 @@ def main():
                 o = overrides(s, "KIDNEY_MULTISITE", "natural", rho, seed)
                 jobs[make_run_key(tracker_config(o))] = o
 
-    order = {p: i for i, p in enumerate(["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"])}
+    for lam in MIX_LAMBDAS:
+        for seed in SEEDS:
+            for rho in MIX_MULTISITE_RHOS:
+                o = overrides("FedAgain", "KIDNEY_MULTISITE", "natural", rho, seed, mix=lam)
+                jobs[make_run_key(tracker_config(o))] = o
+            for rho in MIX_CLINICAL_RHOS:
+                for ds in CLINICAL:
+                    o = overrides("FedAgain", ds, "non-iid-label", rho, seed, mix=lam)
+                    jobs[make_run_key(tracker_config(o))] = o
+
+    order = {p: i for i, p in enumerate(ORDER)}
     queue = [{"key": k, "phase": phase_of(o), "overrides": o} for k, o in jobs.items()]
     # Seed-major inside a phase: a partial phase still covers every
     # (dataset, strategy) cell with at least one seed.

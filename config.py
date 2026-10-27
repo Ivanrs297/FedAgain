@@ -70,6 +70,9 @@ FEDAGAIN_LOG_TRUST = False  # dump per-round trust scores to results/trust_score
 #   "rank"       -> w proportional to the rank of T   (magnitude discarded)
 FEDAGAIN_NORM_MODE = "sum_to_one"
 FEDAGAIN_NORM_TEMPERATURE = 1.0
+# Trust/data-size mixing (round 2, multi-site domain shift):
+#   w = (1 - lambda) * w_trust + lambda * n_k / n.  0 = plain FedAgain.
+FEDAGAIN_MIX_LAMBDA = 0.0
 
 # Training Configuration
 BATCH_SIZE = 32

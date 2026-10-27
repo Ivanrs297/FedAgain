@@ -402,6 +402,7 @@ if __name__ == "__main__":
         "epsilon": getattr(config, "FEDAGAIN_EPSILON", 1e-6) if is_fedagain else "",
         "norm_mode": getattr(config, "FEDAGAIN_NORM_MODE", "sum_to_one") if is_fedagain else "",
         "norm_temperature": getattr(config, "FEDAGAIN_NORM_TEMPERATURE", 1.0) if is_fedagain else "",
+        "mix_lambda": getattr(config, "FEDAGAIN_MIX_LAMBDA", 0.0) if is_fedagain else "",
         "seed": getattr(config, "SEED", 42),
         "data_version": DATA_VERSION,
     }
@@ -493,11 +494,14 @@ if __name__ == "__main__":
         log_trust = getattr(config, 'FEDAGAIN_LOG_TRUST', False)
         norm_mode = getattr(config, 'FEDAGAIN_NORM_MODE', 'sum_to_one')
         norm_temp = getattr(config, 'FEDAGAIN_NORM_TEMPERATURE', 1.0)
+        mix_lambda = getattr(config, 'FEDAGAIN_MIX_LAMBDA', 0.0)
         fedagain_strategy = FedAgainStrategy(
             epsilon=epsilon, mode=trust_mode, alpha=alpha, beta=beta,
             log_trust=log_trust, norm_mode=norm_mode,
-            norm_temperature=norm_temp,
+            norm_temperature=norm_temp, mix_lambda=mix_lambda,
         )
+        if mix_lambda > 0:
+            print(f"  - FedAgain trust/data-size mixing: lambda={mix_lambda}")
         print(f"  - FedAgain epsilon: {epsilon}")
         print(f"  - FedAgain normalization: {norm_mode}"
               + (f" (tau={norm_temp})" if norm_mode == "softmax" else ""))
@@ -941,6 +945,8 @@ if __name__ == "__main__":
             tag += f"_nm-{norm}"
             if norm == "softmax":
                 tag += f"_tau{getattr(config, 'FEDAGAIN_NORM_TEMPERATURE', 1.0)}"
+        if getattr(config, "FEDAGAIN_MIX_LAMBDA", 0.0) > 0:
+            tag += f"_mix{config.FEDAGAIN_MIX_LAMBDA}"
         trust_path = os.path.join(
             trust_dir,
             f"trust_{config.DATASET}_{config.DATA_DISTRIBUTION}_{mode}{tag}"

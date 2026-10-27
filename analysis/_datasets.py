@@ -87,8 +87,9 @@ def srcpaper_dir():
 #   _eps<v>    epsilon-sensitivity sweep
 #   nm-<mode>  trust-normalization sweep   (keeps trust_mode=combined_mult!)
 #   tm-<mode>  trust-formulation ablation  (non-multiplicative variants)
-# Every analysis that reports "FedAgain" must exclude all four.
-VARIANT_TAGS = ("pm-", "_eps", "nm-")
+#   _mix<l>    trust/data-size mixing (round 2; keeps the default trust mode!)
+# Every analysis that reports "FedAgain" must exclude all five.
+VARIANT_TAGS = ("pm-", "_eps", "nm-", "_mix")
 
 
 def is_canonical(row):

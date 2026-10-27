@@ -29,12 +29,14 @@ class FedAgainStrategy:
     def __init__(self, epsilon: float = 1e-6, mode: str = "combined_mult",
                  alpha: float = 1.0, beta: float = 1.0,
                  log_trust: bool = False, norm_mode: str = "sum_to_one",
-                 norm_temperature: float = 1.0):
+                 norm_temperature: float = 1.0, mix_lambda: float = 0.0):
         if mode not in trust_fns.TRUST_MODES:
             raise ValueError(
                 f"Unknown trust mode '{mode}'. "
                 f"Expected one of {trust_fns.TRUST_MODES}."
             )
+        if not 0.0 <= mix_lambda <= 1.0:
+            raise ValueError(f"mix_lambda must be in [0, 1], got {mix_lambda}.")
         if norm_mode not in trust_fns.NORM_MODES:
             raise ValueError(
                 f"Unknown normalization mode '{norm_mode}'. "
@@ -47,9 +49,10 @@ class FedAgainStrategy:
         self.log_trust = log_trust
         self.norm_mode = norm_mode
         self.norm_temperature = norm_temperature
+        self.mix_lambda = mix_lambda
         self.global_params = None
         # Per-round trust records, populated when log_trust is True.
-        # Each entry: (round, client, E_k, D_k, T_raw, T_norm).
+        # Each entry: (round, client, E_k, D_k, T_raw, T_norm, w_final).
         self.trust_history: List[tuple] = []
         self._round = 0
 
@@ -89,16 +92,27 @@ class FedAgainStrategy:
             mode=self.mode, alpha=self.alpha, beta=self.beta,
             epsilon=self.epsilon,
         )
-        weights = trust_fns.normalize(
+        trust_weights = trust_fns.normalize(
             raw, mode=self.norm_mode, temperature=self.norm_temperature)
 
+        # Optional floor against benign distortion under real domain shift:
+        # blend the trust weights with the data-size (FedAvg) weights,
+        # w = (1 - lambda) * trust + lambda * n_k / n. lambda = 0 is FedAgain
+        # unchanged; every client keeps at least lambda * n_k / n.
+        if self.mix_lambda > 0.0:
+            sizes = np.asarray([r[1] for r in results], dtype=np.float64)
+            weights = ((1.0 - self.mix_lambda) * trust_weights
+                       + self.mix_lambda * sizes / sizes.sum())
+        else:
+            weights = trust_weights
+
         if self.log_trust:
-            for k, (E_k, D_k, t_raw, t_norm) in enumerate(
-                zip(benchmark_errors, divergences, raw, weights)
+            for k, (E_k, D_k, t_raw, t_norm, w) in enumerate(
+                zip(benchmark_errors, divergences, raw, trust_weights, weights)
             ):
                 self.trust_history.append(
                     (self._round, k, float(E_k), float(D_k),
-                     float(t_raw), float(t_norm))
+                     float(t_raw), float(t_norm), float(w))
                 )
 
         # Trust-weighted average of the client parameters.
@@ -122,7 +136,7 @@ class FedAgainStrategy:
             writer = csv.writer(f)
             writer.writerow(
                 ["round", "client", "benchmark_error", "divergence",
-                 "trust_raw", "trust_normalized"]
+                 "trust_raw", "trust_normalized", "weight"]
             )
             writer.writerows(self.trust_history)
 

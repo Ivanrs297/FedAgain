@@ -94,6 +94,10 @@ def make_run_key(config: dict) -> str:
             parts.append(f"nm-{nm}")
             if nm == "softmax":
                 parts.append(f"tau{c.get('norm_temperature', '')}")
+        # Trust/data-size mixing (round 2): untagged at the default lambda = 0.
+        mix = c.get("mix_lambda")
+        if mix not in (None, "", 0, 0.0):
+            parts.append(f"mix{mix}")
     if c.get("seed") is not None:
         parts.append(f"s{c['seed']}")
     raw = "_".join(p for p in parts if p != "")

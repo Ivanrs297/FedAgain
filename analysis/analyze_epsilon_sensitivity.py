@@ -54,7 +54,8 @@ def load():
                     or r["corruption_severity"] != "3"
                     or r["trust_mode"] != "combined_mult"
                     or "pm-" in r["run_key"]
-                    or "nm-" in r["run_key"]):
+                    or "nm-" in r["run_key"]
+                    or "_mix" in r["run_key"]):
                 continue
             m = EPS_RE.search(r["run_key"])
             eps = float(m.group(1)) if m else 1e-6

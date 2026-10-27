@@ -9,9 +9,12 @@ main.py with per-class metrics since 2026-10) and reports, mean +- sample SD
      macro-F1;
   2. per-subtype sensitivity and specificity for every strategy and dataset;
   3. KIDNEY_MULTISITE (natural three-site federation): accuracy, balanced
-     accuracy and accuracy per acquisition site, for each corruption level.
+     accuracy and accuracy per acquisition site, for each corruption level;
+  4. FedAgain with trust/data-size mixing (lambda > 0, run-key tag _mix<l>)
+     next to plain FedAgain (lambda = 0) and FedAvg / FedMedian, on the
+     multi-site federation and on the clinical datasets.
 
-Outputs (in <results>/clinical/): clinical_summary.md and three CSV files.
+Outputs (in <results>/clinical/): clinical_summary.md and four CSV files.
 
     FEDAGAIN_RESULTS_DIR=results_v2 python analysis/analyze_clinical_metrics.py
 """
@@ -20,6 +23,7 @@ import csv
 import glob
 import json
 import os
+import re
 import statistics as st
 import sys
 from collections import defaultdict
@@ -58,8 +62,16 @@ def main():
     runs = load_runs()
     canon = defaultdict(list)       # (dataset, strategy) -> [final_metrics]
     multi = defaultdict(list)       # (rho, strategy) -> [final_metrics]
+    mix = defaultdict(list)         # (dataset, rho, lambda) -> [final_metrics]
     for m in runs:
         c, fm, key = m["config"], m["final_metrics"], m["run_key"]
+        lam = re.search(r"_mix([0-9.]+)_s\d+$", key)
+        if (lam and c["strategy"] == "FedAgain" and "_eps" not in key and "nm-" not in key
+                and c.get("poison_mode", "image") == "image"
+                and c.get("trust_mode") == "combined_mult"):
+            rho = float(c["corrupt_ratio"]) if c.get("corrupt_clients") else 0.0
+            mix[(c["dataset"], rho, float(lam.group(1)))].append(fm)
+            continue
         if not is_canonical_key(key) or c.get("poison_mode", "image") != "image":
             continue
         rho = float(c["corrupt_ratio"]) if c.get("corrupt_clients") else 0.0
@@ -138,6 +150,36 @@ def main():
             rows.append([rho, s, len(fms), acc, bal, site["A"], site["B"], site["C"]])
         md.append("")
     with open(os.path.join(OUT, "multisite_metrics.csv"), "w", newline="") as f:
+        csv.writer(f).writerows(rows)
+
+    # 4. trust/data-size mixing: w = (1 - lambda) * trust + lambda * n_k / n
+    rows = [["dataset", "rho", "method", "n", "accuracy", "balanced_accuracy",
+             "site_A", "site_B", "site_C"]]
+    md += ["## 4. FedAgain with trust/data-size mixing (lambda)", "",
+           "w_k = (1 - lambda) * trust_k + lambda * n_k / n; lambda = 0 is plain FedAgain.", ""]
+    for ds, rho in sorted({(k[0], k[1]) for k in mix}):
+        if ds == "KIDNEY_MULTISITE":
+            ref = {s: multi.get((rho, s), []) for s in ("FedAvg", "FedMedian", "FedAgain")}
+        elif rho == 0.3:
+            ref = {s: canon.get((ds, s), []) for s in ("FedAvg", "FedMedian", "FedAgain")}
+        else:
+            ref = {}
+        cells = [(s if s != "FedAgain" else "FedAgain (lambda=0)", fms) for s, fms in ref.items()]
+        cells += [(f"FedAgain lambda={lam}", mix[(ds, rho, lam)])
+                  for lam in sorted(l for d, r, l in mix if (d, r) == (ds, rho))]
+        md += [f"### {DS_LABEL.get(ds, ds)}, rho = {rho}", "",
+               "| method | n | accuracy | balanced acc. | site A | site B | site C |",
+               "|---|---|---|---|---|---|---|"]
+        for name, fms in cells:
+            if not fms:
+                continue
+            site = {k: fmt([x.get("per_site_accuracy", {}).get(k) for x in fms]) for k in "ABC"}
+            acc = fmt([x["accuracy"] for x in fms])
+            bal = fmt([x.get("balanced_accuracy") for x in fms])
+            md.append(f"| {name} | {len(fms)} | {acc} | {bal} | {site['A']} | {site['B']} | {site['C']} |")
+            rows.append([ds, rho, name, len(fms), acc, bal, site["A"], site["B"], site["C"]])
+        md.append("")
+    with open(os.path.join(OUT, "mixing_metrics.csv"), "w", newline="") as f:
         csv.writer(f).writerows(rows)
 
     with open(os.path.join(OUT, "clinical_summary.md"), "w") as f:
