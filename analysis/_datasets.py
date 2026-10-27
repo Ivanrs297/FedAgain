@@ -28,6 +28,13 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRCPAPER_RESULTS = os.path.join(_ROOT, "jcr-fedagain", "src-paper", "images", "results")
 SRCPAPER_SUPP = os.path.join(_ROOT, "jcr-fedagain", "src-paper", "images", "supplementary")
 
+# Results tree to analyse. ``results`` holds the v1 runs; the specimen-disjoint
+# v2 reruns live in ``results_v2`` (FEDAGAIN_RESULTS_DIR=results_v2). For any
+# tree other than ``results`` the figures stay inside it (paper_figures/) and
+# never overwrite the manuscript's images.
+RESULTS_NAME = os.environ.get("FEDAGAIN_RESULTS_DIR", "results")
+RESULTS = os.path.join(_ROOT, RESULTS_NAME)
+
 CLINICAL = ["DAUDON_MIX", "JONATHAN_MIX", "MYSTONE"]
 BENCHMARK = ["CIFAR10"]
 
@@ -65,6 +72,10 @@ def fig_name(base):
 def srcpaper_dir():
     """Where the src-paper copy of the figure goes: the results folder for the
     clinical main-text figures, the supplementary folder otherwise."""
+    if RESULTS_NAME != "results":
+        d = os.path.join(RESULTS, "paper_figures")
+        os.makedirs(d, exist_ok=True)
+        return d
     return SRCPAPER_RESULTS if clinical_only() and not cifar_only() else SRCPAPER_SUPP
 
 

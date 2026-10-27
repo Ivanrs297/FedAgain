@@ -20,6 +20,113 @@ except ImportError:
     print("[WARNING] imagecorruptions package not found. Install with: pip install imagecorruptions")
 
 
+# ---------------------------------------------------------------------------
+# Data version (second MedIA revision)
+#   v1 : the released train/test folders as loaded until 2026-10 (MyStone read
+#        through ImageFolder, which also picked up its full frames and binary
+#        segmentation masks; private splits not specimen-disjoint).
+#   v2 : specimen-disjoint splits built by scripts/build_specimen_splits.py
+#        (data/splits/*_v2.csv), MyStone patches only, plus KIDNEY_MULTISITE.
+# Resolution order: FEDAGAIN_DATA_VERSION env var > config.DATA_VERSION > "v1".
+# ---------------------------------------------------------------------------
+KIDNEY_V2 = {
+    "JONATHAN_MIX": "JONATHAN_MIX", "JONATHAN_SEC": "JONATHAN_SEC",
+    "JONATHAN_SUR": "JONATHAN_SUR", "DAUDON_MIX": "DAUDON_MIX",
+    "DAUDON_SEC": "DAUDON_SEC", "DAUDON_SUR": "DAUDON_SUR", "MYSTONE": "MYSTONE",
+}
+# Natural three-site federation: each collection is one acquisition site.
+MULTISITE_SOURCES = [("A", "DAUDON_MIX"), ("B", "JONATHAN_MIX"), ("C", "MYSTONE")]
+
+
+def data_version():
+    v = os.environ.get("FEDAGAIN_DATA_VERSION")
+    if not v:
+        try:
+            import config as _cfg
+            v = getattr(_cfg, "DATA_VERSION", "v1")
+        except ImportError:
+            v = "v1"
+    return v
+
+
+def subtype_of(class_name):
+    """Harmonized subtype label: 'MIX-Subtype_IVa2' -> 'IVa2',
+    '1_Subtype_COM_WW_Ia' -> 'Ia', '4_Subtype_HAP' -> 'HAP'."""
+    return class_name.split("_")[-1]
+
+
+class ListImageDataset(Dataset):
+    """Image dataset from an explicit (path, label) list, ImageFolder-compatible
+    (``classes``, ``targets``), with optional per-sample site and specimen group."""
+
+    def __init__(self, paths, targets, classes, transform=None, sites=None, groups=None):
+        self.paths = list(paths)
+        self.targets = [int(t) for t in targets]
+        self.classes = list(classes)
+        self.transform = transform
+        self.sites = np.array(sites) if sites is not None else None
+        self.groups = np.array(groups) if groups is not None else None
+
+    def __len__(self):
+        return len(self.paths)
+
+    def __getitem__(self, idx):
+        img = Image.open(self.paths[idx]).convert("RGB")
+        if self.transform is not None:
+            img = self.transform(img)
+        return img, self.targets[idx]
+
+
+def _read_split_csv(name, root):
+    import csv
+    path = os.path.join(root, "splits", f"{name}_v2.csv")
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            f"{path} not found: run `python scripts/build_specimen_splits.py` first")
+    with open(path, newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def _load_kidney_v2(dataset_name, transform, root):
+    """Specimen-disjoint v2 train/test sets (class indices follow the sorted
+    folder names, exactly as ImageFolder assigned them in v1)."""
+    rows = _read_split_csv(KIDNEY_V2[dataset_name], root)
+    classes = sorted({r["class_name"] for r in rows})
+    cidx = {c: i for i, c in enumerate(classes)}
+    out = []
+    for split in ("train", "test"):
+        sel = [r for r in rows if r["split"] == split]
+        out.append(ListImageDataset(
+            [os.path.join(root, r["relpath"]) for r in sel],
+            [cidx[r["class_name"]] for r in sel], classes, transform,
+            groups=[r["group"] for r in sel]))
+    return out[0], out[1]
+
+
+def _load_multisite_v2(transform, root):
+    """KIDNEY_MULTISITE: the three collections as three acquisition sites, on the
+    union of their subtypes (9 classes, no merging: each site lacks some)."""
+    per_site = []
+    for site, name in MULTISITE_SOURCES:
+        per_site.append((site, _read_split_csv(KIDNEY_V2[name], root)))
+    classes = sorted({subtype_of(r["class_name"]) for _, rows in per_site for r in rows})
+    cidx = {c: i for i, c in enumerate(classes)}
+    out = []
+    for split in ("train", "test"):
+        paths, targets, sites, groups = [], [], [], []
+        for site, rows in per_site:
+            for r in rows:
+                if r["split"] != split:
+                    continue
+                paths.append(os.path.join(root, r["relpath"]))
+                targets.append(cidx[subtype_of(r["class_name"])])
+                sites.append(site)
+                groups.append(f"{site}:{r['group']}")
+        out.append(ListImageDataset(paths, targets, classes, transform,
+                                    sites=sites, groups=groups))
+    return out[0], out[1]
+
+
 class CorruptedDataset(Dataset):
     """
     Wrapper to apply random image corruptions to a dataset.
@@ -436,6 +543,14 @@ def get_dataset_info(dataset_name: str) -> Dict:
             "input_size": 256,
             "mean": [0.485, 0.456, 0.406],
             "std": [0.229, 0.224, 0.225]
+        },
+        # v2 only: Daudon + Jonathan + MyStone as three sites, union of subtypes
+        "KIDNEY_MULTISITE": {
+            "num_classes": 9,  # Ia IIa IIIa IVa IVa2 IVc IVd Va HAP
+            "num_channels": 3,
+            "input_size": 256,
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225]
         }
     }
     
@@ -464,7 +579,19 @@ def load_dataset(dataset_name: str, root: str = "./data"):
         transforms.ToTensor(),
         transforms.Normalize(mean=dataset_info["mean"], std=dataset_info["std"])
     ])
-    
+
+    if dataset_name == "KIDNEY_MULTISITE" or (data_version() == "v2" and dataset_name in KIDNEY_V2):
+        if data_version() != "v2":
+            raise ValueError("KIDNEY_MULTISITE exists only in data version v2 "
+                             "(set FEDAGAIN_DATA_VERSION=v2)")
+        if dataset_name == "KIDNEY_MULTISITE":
+            train_dataset, test_dataset = _load_multisite_v2(transform, root)
+        else:
+            train_dataset, test_dataset = _load_kidney_v2(dataset_name, transform, root)
+        print(f"  - Data version v2: {len(train_dataset)} train / {len(test_dataset)} test "
+              f"samples, specimen-disjoint")
+        return train_dataset, test_dataset, dataset_info
+
     if dataset_name == "EMNIST":
         train_dataset = datasets.EMNIST(
             root=root,
@@ -792,6 +919,58 @@ def partition_data_non_iid_dirichlet(dataset, num_clients: int, alpha: float = 0
     return client_datasets
 
 
+def _site_group_arrays(dataset):
+    """Per-sample site and specimen group of a ListImageDataset or a Subset of one."""
+    from torch.utils.data import Subset
+    idx = None
+    base = dataset
+    while isinstance(base, Subset):
+        idx = np.asarray(base.indices) if idx is None else np.asarray(base.indices)[idx]
+        base = base.dataset
+    if getattr(base, "sites", None) is None or getattr(base, "groups", None) is None:
+        raise ValueError("natural partitioning needs a dataset with sites and groups "
+                         "(KIDNEY_MULTISITE, data version v2)")
+    if idx is None:
+        idx = np.arange(len(base))
+    return base.sites[idx], base.groups[idx]
+
+
+def partition_data_natural(dataset, num_clients: int, seed: int = 42):
+    """Natural multi-site partition (KIDNEY_MULTISITE).
+
+    Clients never mix sites: each site gets a number of clients proportional to
+    its training size (largest remainder, at least one), and its specimens are
+    dealt whole, in random order, to the currently smallest client of that site.
+    Label skew is therefore the one the sites really have, not a simulated one.
+    """
+    from torch.utils.data import Subset
+    sites, groups = _site_group_arrays(dataset)
+    site_names = sorted(set(sites.tolist()))
+    sizes = np.array([np.sum(sites == s) for s in site_names], dtype=float)
+    quota = sizes / sizes.sum() * num_clients
+    n_per_site = np.maximum(np.floor(quota).astype(int), 1)
+    while n_per_site.sum() < num_clients:
+        n_per_site[np.argmax(quota - n_per_site)] += 1
+    while n_per_site.sum() > num_clients:
+        n_per_site[np.argmax(n_per_site)] -= 1
+    rng = np.random.RandomState(seed)
+    client_indices = []
+    for s, n_s in zip(site_names, n_per_site):
+        site_idx = np.where(sites == s)[0]
+        by_group = {}
+        for i in site_idx:
+            by_group.setdefault(groups[i], []).append(i)
+        keys = sorted(by_group)
+        rng.shuffle(keys)
+        bins = [[] for _ in range(n_s)]
+        for g in keys:
+            min(bins, key=len).extend(by_group[g])
+        client_indices.extend(bins)
+        print(f"  - Site {s}: {len(site_idx)} samples, {len(keys)} specimens -> "
+              f"{n_s} clients of sizes {[len(b) for b in bins]}")
+    return [Subset(dataset, np.array(sorted(b))) for b in client_indices]
+
+
 def _extract_labels(dataset):
     """Return an np.array of integer labels for a dataset (fast paths first)."""
     if hasattr(dataset, 'targets'):
@@ -881,6 +1060,9 @@ def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: i
     elif distribution == "non-iid-dirichlet":
         print(f"  - Distribution: Non-IID (Dirichlet alpha={dirichlet_alpha})")
         client_datasets = partition_data_non_iid_dirichlet(train_dataset, num_clients, dirichlet_alpha, seed=seed)
+    elif distribution == "natural":
+        print(f"  - Distribution: natural (clients = specimen-disjoint shares of real sites)")
+        client_datasets = partition_data_natural(train_dataset, num_clients, seed=seed)
     else:
         raise ValueError(f"Unknown distribution: {distribution}")
     
@@ -930,6 +1112,12 @@ def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: i
         num_workers=num_workers, pin_memory=True)
 
     dataset_info["server_root"] = server_root  # None unless server_root_per_class>0
+    # Class names and (multi-site only) the site of every test sample, in test
+    # loader order, for per-class and per-site clinical metrics.
+    dataset_info["class_names"] = list(getattr(test_dataset, "classes", []))
+    test_sites = getattr(test_dataset, "sites", None)
+    dataset_info["test_sites"] = test_sites.tolist() if test_sites is not None else None
+    dataset_info["data_version"] = data_version()
 
     return train_loaders, val_loaders, test_loader, dataset_info
 

@@ -23,6 +23,12 @@ DIRICHLET_ALPHA = 0.5  # For non-iid-dirichlet: concentration parameter (lower =
 CORRUPT_CLIENTS = True
 CORRUPT_CLIENT_RATIO = 0.3
 CORRUPTION_SEVERITY = 3
+POISON_MODE = "image"  # "image" | "label_flip"
+LABEL_FLIP_RATIO = 1.0  # fraction of a poisoned client's labels to flip
+# Data version: "v1" = released folders (results/), "v2" = specimen-disjoint
+# splits + MyStone patches only + KIDNEY_MULTISITE (results_v2/). The env var
+# FEDAGAIN_DATA_VERSION overrides this. See src/dataset.py.
+DATA_VERSION = "v1"
 # Note: Corruptions are applied only to corrupted clients during training
 #       Global model is tested on clean (benign) images
 

@@ -14,9 +14,13 @@ from datetime import datetime
 from collections import defaultdict
 import os
 
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _datasets import RESULTS, datasets as _ds_sel, is_canonical
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LEDGER = os.path.join(ROOT, "results", "experiment_ledger.csv")
-DATASETS = {"DAUDON_MIX", "JONATHAN_MIX", "MYSTONE", "CIFAR10"}
+LEDGER = os.path.join(RESULTS, "experiment_ledger.csv")
+DATASETS = set(_ds_sel())
 STRATS = ["FedAvg", "FedProx", "FedMedian", "Bulyan", "FedBN", "Scaffold", "MOON", "FedAgain"]
 
 
@@ -32,7 +36,9 @@ def main():
     d = defaultdict(list)
     with open(LEDGER) as f:
         for r in csv.DictReader(f):
-            if (r["status"] == "completed" and r["dataset"] in DATASETS
+            # Canonical runs only: the label-flip, epsilon, normalization and
+            # trust-ablation sweeps share rho=0.3 and would otherwise inflate n.
+            if (is_canonical(r) and r["dataset"] in DATASETS
                     and r["corrupt_ratio"] == "0.3" and r["corruption_severity"] == "3"
                     and r["data_distribution"] == "non-iid-label"
                     and r["rounds_completed"] == "10"):

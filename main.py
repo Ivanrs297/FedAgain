@@ -12,13 +12,28 @@ import sys
 import torch
 from collections import OrderedDict
 from src.model import get_model
-from src.dataset import load_data
+from src.dataset import load_data, data_version
 from src.client import train, test, train_moon, train_scaffold, train_feddyn
 from src.strategies.fedagain import FedAgainStrategy, compute_benchmark_error
 from src.logger import ExperimentLogger, compute_classification_metrics
 from src.tracking import ExperimentTracker
 import config
 import numpy as np
+import json
+
+# Per-run overrides without rewriting config.py (used by the unattended queue in
+# scripts/round2/): FEDAGAIN_CONFIG_OVERRIDES='{"STRATEGY": "FedAvg", ...}'.
+# src/dataset.py reads the same module object, so it sees them too.
+for _k, _v in json.loads(os.environ.get("FEDAGAIN_CONFIG_OVERRIDES", "{}")).items():
+    if not hasattr(config, _k):
+        raise KeyError(f"FEDAGAIN_CONFIG_OVERRIDES: unknown config key {_k}")
+    setattr(config, _k, _v)
+
+# Each data version keeps its own results tree, so runs on the v2
+# (specimen-disjoint) data can never be mixed with, or skipped because of, v1 runs.
+DATA_VERSION = data_version()
+RESULTS_DIR = os.environ.get("FEDAGAIN_RESULTS_DIR") or (
+    "results" if DATA_VERSION == "v1" else f"results_{DATA_VERSION}")
 
 
 # Global variables for data loaders (shared across clients)
@@ -360,7 +375,7 @@ def evaluate_global_model(server_round: int, parameters, config_dict,
 
 if __name__ == "__main__":
     # Initialize experiment logger
-    logger = ExperimentLogger(results_dir="results")
+    logger = ExperimentLogger(results_dir=RESULTS_DIR)
 
     # Build the experiment identity and resilient tracker. It writes results
     # incrementally (per round) and lets already-completed runs be skipped on
@@ -388,8 +403,9 @@ if __name__ == "__main__":
         "norm_mode": getattr(config, "FEDAGAIN_NORM_MODE", "sum_to_one") if is_fedagain else "",
         "norm_temperature": getattr(config, "FEDAGAIN_NORM_TEMPERATURE", 1.0) if is_fedagain else "",
         "seed": getattr(config, "SEED", 42),
+        "data_version": DATA_VERSION,
     }
-    tracker = ExperimentTracker(tracker_config, results_dir="results")
+    tracker = ExperimentTracker(tracker_config, results_dir=RESULTS_DIR)
     if tracker.is_completed() and os.environ.get("EXPERIMENT_FORCE") != "1":
         print(f"[tracker] run '{tracker.run_key}' already completed -> "
               f"skipping (set EXPERIMENT_FORCE=1 to force a rerun).")
@@ -854,6 +870,36 @@ if __name__ == "__main__":
     print(f"  - Precision: {final_metrics['precision']:.4f}")
     print(f"  - Recall:    {final_metrics['recall']:.4f}")
     print(f"  - F1 Score:  {final_metrics['f1']:.4f}")
+
+    # Clinical view of the same predictions (manifest only; the ledger CSV keeps
+    # its fixed columns): per-subtype sensitivity/specificity, balanced
+    # accuracy, confusion matrix and, for the multi-site federation, accuracy
+    # per acquisition site.
+    n_cls = dataset_info['num_classes']
+    cm = np.bincount(n_cls * y_true.astype(int) + y_pred.astype(int),
+                     minlength=n_cls * n_cls).reshape(n_cls, n_cls)
+    tp = np.diag(cm).astype(float)
+    support = cm.sum(axis=1).astype(float)
+    predicted = cm.sum(axis=0).astype(float)
+    tn = cm.sum() - support - predicted + tp
+    sens = np.divide(tp, support, out=np.full(n_cls, np.nan), where=support > 0)
+    spec = np.divide(tn, tn + predicted - tp, out=np.full(n_cls, np.nan),
+                     where=(tn + predicted - tp) > 0)
+    final_metrics.update({
+        "balanced_accuracy": float(np.nanmean(sens)),
+        "class_names": dataset_info.get("class_names") or [str(i) for i in range(n_cls)],
+        "per_class_sensitivity": [None if np.isnan(v) else float(v) for v in sens],
+        "per_class_specificity": [None if np.isnan(v) else float(v) for v in spec],
+        "per_class_support": support.astype(int).tolist(),
+        "confusion_matrix": cm.tolist(),
+    })
+    if dataset_info.get("test_sites") is not None:
+        sites = np.array(dataset_info["test_sites"])
+        final_metrics["per_site_accuracy"] = {
+            s: float(np.mean(y_pred[sites == s] == y_true[sites == s]))
+            for s in sorted(set(sites.tolist()))}
+        print(f"  - Per-site accuracy: {final_metrics['per_site_accuracy']}")
+    print(f"  - Balanced acc: {final_metrics['balanced_accuracy']:.4f}")
     
     # Log experiment results
     experiment_config = {
@@ -879,7 +925,7 @@ if __name__ == "__main__":
     if (config.STRATEGY == "FedAgain"
             and getattr(config, "FEDAGAIN_LOG_TRUST", False)
             and fedagain_strategy is not None):
-        trust_dir = os.path.join("results", "trust_scores")
+        trust_dir = os.path.join(RESULTS_DIR, "trust_scores")
         os.makedirs(trust_dir, exist_ok=True)
         mode = getattr(config, "FEDAGAIN_TRUST_MODE", "combined_mult")
         # The variant tags matter: without them a weighted_additive sweep over
@@ -900,8 +946,23 @@ if __name__ == "__main__":
             f"trust_{config.DATASET}_{config.DATA_DISTRIBUTION}_{mode}{tag}"
             f"_c{config.NUM_CLIENTS}_r{config.NUM_ROUNDS}.csv"
         )
-        fedagain_strategy.save_trust_log(trust_path)
-        print(f"  - Trust scores saved to: {trust_path}")
+        if DATA_VERSION == "v1":
+            fedagain_strategy.save_trust_log(trust_path)
+            print(f"  - Trust scores saved to: {trust_path}")
+        else:
+            # v2: one complete log per run (seed and rho included via the run
+            # key), plus the legacy name the analysis scripts read, written only
+            # by the reference configuration (rho=0.3, image corruption, default
+            # epsilon, seed 44) so later runs cannot overwrite it.
+            by_run = os.path.join(trust_dir, "by_run")
+            os.makedirs(by_run, exist_ok=True)
+            fedagain_strategy.save_trust_log(os.path.join(by_run, f"{tracker.run_key}.csv"))
+            if (getattr(config, "CORRUPT_CLIENT_RATIO", None) == 0.3
+                    and getattr(config, "POISON_MODE", "image") == "image"
+                    and getattr(config, "FEDAGAIN_EPSILON", 1e-6) == 1e-6
+                    and getattr(config, "SEED", 42) == 44):
+                fedagain_strategy.save_trust_log(trust_path)
+            print(f"  - Trust scores saved to: {by_run}/{tracker.run_key}.csv")
 
     # Mark the run completed in the resilient tracker.
     tracker.finish(final_metrics)

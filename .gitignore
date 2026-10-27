@@ -49,3 +49,8 @@ paper-backups/
 
 # Confidential response-to-reviewers letters (Word) — never commit
 Media Review*.docx
+
+# Round-2 (data v2) queue: transient runner files
+results_v2/logs/
+results_v2/.queue.lock
+results_v2/PAUSE

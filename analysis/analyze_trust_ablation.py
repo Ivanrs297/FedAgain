@@ -16,6 +16,7 @@ Run from the repo root:  python analysis/analyze_trust_ablation.py
 import csv
 import glob
 import os
+import sys
 import re
 from collections import defaultdict
 
@@ -25,7 +26,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RES = os.path.join(ROOT, "results")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _datasets import RESULTS as RES, srcpaper_dir  # results tree (v1/v2)
 OUT = os.path.join(ROOT, "results_analysis", "trust_ablation")
 os.makedirs(OUT, exist_ok=True)
 
@@ -397,7 +399,8 @@ def trust_distribution_per_round(mode="combined_mult"):
     out = os.path.join(OUT, "trust_distribution_rounds.png")
     fig.savefig(out, dpi=150, bbox_inches="tight")
     plt.close(fig)
-    srcpaper = os.path.join(ROOT, "jcr-fedagain", "src-paper", "images", "results")
+    srcpaper = srcpaper_dir() if "FEDAGAIN_RESULTS_DIR" in os.environ else \
+        os.path.join(ROOT, "jcr-fedagain", "src-paper", "images", "results")
     if os.path.isdir(srcpaper):
         import shutil
         shutil.copy(out, os.path.join(srcpaper, "trust_distribution_rounds.png"))

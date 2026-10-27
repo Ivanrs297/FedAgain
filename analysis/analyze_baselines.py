@@ -24,16 +24,18 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _datasets import RESULTS, datasets as _ds_sel, is_canonical, fig_name, srcpaper_dir, cifar_only  # R1.7 + canonical filter + CIFAR grid
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LEDGER = os.path.join(ROOT, "results", "experiment_ledger.csv")
-OUTDIR = os.path.join(ROOT, "results", "baselines")
+LEDGER = os.path.join(RESULTS, "experiment_ledger.csv")
+OUTDIR = os.path.join(RESULTS, "baselines")
 SRCPAPER = os.path.join(ROOT, "jcr-fedagain", "src-paper", "images", "results")
 os.makedirs(OUTDIR, exist_ok=True)
 
 # Sweep selectors
 import sys as _sys, os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
-from _datasets import datasets as _ds_sel, is_canonical, fig_name, srcpaper_dir, cifar_only  # R1.7 + canonical filter + CIFAR grid
 DATASETS = _ds_sel()
 DS_LABEL = {
     "DAUDON_MIX": "A (Daudon)",
