@@ -43,3 +43,9 @@ response_to_reviewers.html
 
 # Nested independent repo (public review package -> FedAgain-MedIA)
 to-reproduce/
+
+# Confidential paper backups (under-review manuscript) — never commit
+paper-backups/
+
+# Confidential response-to-reviewers letters (Word) — never commit
+Media Review*.docx
