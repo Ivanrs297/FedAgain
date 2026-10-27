@@ -323,8 +323,25 @@ Then `scripts/round2/run_analysis.sh` writes `results_v2/analysis/*.txt`,
 **Next after the queue:** rewrite every number of the r2 tex from
 `results_v2` (use the audit checklist), add the multi-site + clinical-metrics
 subsection (R3.1), cut to ~12-14k words + separate Supplementary PDF (R3.4),
-clean code release with Zenodo DOI (R3.3), non-IID convergence theorem with
-time-varying weights (R6), response letter.
+clean code release with Zenodo DOI (R3.3), response letter.
+
+**R6 convergence theorem — DONE 2026-10-26 (orange, in r2 tex):** Theorem 1
+(`thm:convergence`, eq:convergence) in `subsubsec:convergence_analysis`
+replaces the old heuristic paragraph; full proof (Lemmas 1-3, Corollary 1
+`cor:rate`, remarks) in new last appendix `app:convergence_proof`. Measures
+stationarity of the BENIGN objective F_B; non-convex local SGD; weights may
+depend on the round's own gradients (chi=1, FedAgain since D_k uses the update)
+-> O(1/sqrt T) up to a gap 12*mean(delta_t^2) + 8*chi*kappa*sigma^2/tau, with
+delta_t = sum_k |p_k - q_k| zeta_k (= zeta-weighted corrupted mass + benign
+distortion; eq:delta). FedAvg's delta is a constant prop. to corrupted data
+share. Proof independently re-derived by a review agent: no error, constants
+correct; its prose fixes applied (kappa<=|K| always, Prop.1 lower bound not
+needed, chi-floor is an artefact removable with lagged D_k, Karimireddy 2022
+bucketing lower bound backs the delta term only). Prop.1's dynamic range
+renamed rho -> gamma (rho is the corruption ratio). New bib:
+karimireddy2022byzantine. Adds ~700 main-text words: consider moving
+consequences (i)-(iii) to the appendix during the R3.4 cut. Backups:
+`paper-backups/FedAgain_classification_r2.before-{theorem,thm-review}.tex`.
 
 ## Previously (v1)
 
