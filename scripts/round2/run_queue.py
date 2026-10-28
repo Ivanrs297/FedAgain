@@ -76,11 +76,17 @@ def write_status(queue, state, current=None, note=""):
               and state["attempts"].get(j["key"], 0) >= MAX_ATTEMPTS]
     durs = state.get("durations", [])
     remaining = len(queue) - len(done) - len(failed)
-    eta = ""
-    if durs:
-        recent = durs[-30:]
-        eta = (datetime.now() + timedelta(seconds=remaining * sum(recent) / len(recent))
-               ).strftime("%Y-%m-%d %H:%M")
+    avg = sum(durs[-30:]) / len(durs[-30:]) if durs else None
+
+    def eta_after(n_jobs):
+        return (datetime.now() + timedelta(seconds=n_jobs * avg)).strftime("%Y-%m-%d %H:%M")
+
+    eta = eta_after(remaining) if avg else ""
+    # Per-phase ETA: jobs run in queue order, so a phase finishes once every
+    # pending job up to and including its last pending one has run.
+    done_keys = {j["key"] for j in done} | {j["key"] for j in failed}
+    pending = [j for j in queue if j["key"] not in done_keys]
+    phase_end = {j["phase"]: i + 1 for i, j in enumerate(pending)}
     lines = [
         "# Round-2 (data v2) experiment queue",
         "",
@@ -89,12 +95,15 @@ def write_status(queue, state, current=None, note=""):
         f"- Running: `{current}`" if current else "- Running: (none)",
         f"- ETA (from the last {min(len(durs), 30)} job durations): {eta or 'n/a'}",
         "",
-        "| phase | what | done | total |",
-        "|---|---|---|---|",
+        "| phase | what | done | total | ETA |",
+        "|---|---|---|---|---|",
     ]
     for p, name in PHASE_NAMES.items():
         tot = [j for j in queue if j["phase"] == p]
-        lines.append(f"| {p} | {name} | {sum(is_completed(j['key']) for j in tot)} | {len(tot)} |")
+        p_eta = ("done" if p not in phase_end else
+                 eta_after(phase_end[p]) if avg else "n/a")
+        lines.append(f"| {p} | {name} | {sum(is_completed(j['key']) for j in tot)} "
+                     f"| {len(tot)} | {p_eta} |")
     if failed:
         lines += ["", "## Failed after retries (see results_v2/logs/<key>.log)", ""]
         lines += [f"- `{j['key']}`" for j in failed]
