@@ -98,6 +98,15 @@ def make_run_key(config: dict) -> str:
         mix = c.get("mix_lambda")
         if mix not in (None, "", 0, 0.0):
             parts.append(f"mix{mix}")
+    # Server root-set variants of RFLPA/BOBA (round 2): untagged at the defaults
+    # (20/class, clean, all sites), so every existing key stays valid.
+    rpc = c.get("root_per_class")
+    if rpc not in (None, "", 20):
+        parts.append(f"root{rpc}")
+    if c.get("root_mode") not in (None, "", "clean"):
+        parts.append("rootcorr" if c["root_mode"] == "corrupted" else f"root-{c['root_mode']}")
+    if c.get("root_site"):
+        parts.append(f"rootsite{c['root_site']}")
     if c.get("seed") is not None:
         parts.append(f"s{c['seed']}")
     raw = "_".join(p for p in parts if p != "")

@@ -15,6 +15,11 @@ Phase order (most important first, so a partial run is already useful):
       Runs right after P3 (see ORDER): added 2026-10-27 after P2 showed
       FedAgain over-weighting site A under real domain shift.
       Multi-site rho=0.6 (6 jobs) added 2026-10-29.
+  P10 server root-set dependence of RFLPA/BOBA (the two baselines that need a
+      clean server set), rho=0.3: root size 2 and 5 per class (default 20),
+      a corrupted root set, and on KIDNEY_MULTISITE a one-hospital root set
+      (site A, B or C)                                                  (72)
+      Added 2026-10-29; runs last.
 
 P1, P3, P4, P6-P8 replicate EXACTLY the 684 clinical v1 runs: each job is
 rebuilt from its v1 manifest (results/runs/*.json) and its run key is checked
@@ -44,13 +49,17 @@ MULTISITE_P5 = (0.0, 0.6)
 MIX_LAMBDAS = (0.3, 0.5)
 MIX_MULTISITE_RHOS = (0.0, 0.3, 0.6)
 MIX_CLINICAL_RHOS = (0.3, 0.6)
+ROOT_STRATEGIES = ("RFLPA", "BOBA")
+ROOT_SIZES = (2, 5)
+ROOT_SITES = ("A", "B", "C")
 # Execution order of the phases (P9 was added later but runs after P3).
-ORDER = ["P1", "P2", "P3", "P9", "P4", "P5", "P6", "P7", "P8"]
+ORDER = ["P1", "P2", "P3", "P9", "P4", "P5", "P6", "P7", "P8", "P10"]
 
 
 def tracker_config(o):
     """Mirror of main.py's tracker_config for a set of config overrides."""
     fa = o["STRATEGY"] == "FedAgain"
+    root = o["STRATEGY"] in ROOT_STRATEGIES
     return {
         "strategy": o["STRATEGY"], "dataset": o["DATASET"],
         "data_distribution": o["DATA_DISTRIBUTION"], "num_clients": o["NUM_CLIENTS"],
@@ -64,6 +73,9 @@ def tracker_config(o):
         "norm_mode": o["FEDAGAIN_NORM_MODE"] if fa else "",
         "norm_temperature": o["FEDAGAIN_NORM_TEMPERATURE"] if fa else "",
         "mix_lambda": o["FEDAGAIN_MIX_LAMBDA"] if fa else "",
+        "root_per_class": o["SERVER_ROOT_PER_CLASS"] if root else "",
+        "root_mode": o["SERVER_ROOT_MODE"] if root else "",
+        "root_site": o["SERVER_ROOT_SITE"] if root else "",
         "seed": o["SEED"],
     }
 
@@ -71,7 +83,7 @@ def tracker_config(o):
 def overrides(strategy, dataset, distribution, rho, seed, poison="image",
               trust_mode="combined_mult", alpha=1.0, beta=1.0, eps=1e-6,
               norm="sum_to_one", tau=1.0, mix=0.0, clients=10, rounds=10, epochs=1,
-              severity=3):
+              severity=3, root_per_class=20, root_mode="clean", root_site=""):
     """Complete config override set: every key a run depends on is explicit, so
     nothing leaks from whatever state config.py is in."""
     return {
@@ -83,6 +95,8 @@ def overrides(strategy, dataset, distribution, rho, seed, poison="image",
         "FEDAGAIN_EPSILON": eps, "FEDAGAIN_NORM_MODE": norm,
         "FEDAGAIN_NORM_TEMPERATURE": tau, "FEDAGAIN_MIX_LAMBDA": mix,
         "FEDAGAIN_LOG_TRUST": strategy == "FedAgain",
+        "SERVER_ROOT_PER_CLASS": root_per_class, "SERVER_ROOT_MODE": root_mode,
+        "SERVER_ROOT_SITE": root_site,
         "SEED": seed,
     }
 
@@ -110,6 +124,9 @@ def from_v1_manifest(m):
 
 
 def phase_of(o):
+    if (o["SERVER_ROOT_PER_CLASS"] != 20 or o["SERVER_ROOT_MODE"] != "clean"
+            or o["SERVER_ROOT_SITE"]):
+        return "P10"
     if o["FEDAGAIN_MIX_LAMBDA"] > 0:
         return "P9"
     if o["DATASET"] == "KIDNEY_MULTISITE":
@@ -157,6 +174,18 @@ def main():
                 for ds in CLINICAL:
                     o = overrides("FedAgain", ds, "non-iid-label", rho, seed, mix=lam)
                     jobs[make_run_key(tracker_config(o))] = o
+
+    for s in ROOT_STRATEGIES:
+        for seed in SEEDS:
+            for ds in CLINICAL:
+                variants = [dict(root_per_class=n) for n in ROOT_SIZES]
+                variants.append(dict(root_mode="corrupted"))
+                for v in variants:
+                    o = overrides(s, ds, "non-iid-label", 0.3, seed, **v)
+                    jobs[make_run_key(tracker_config(o))] = o
+            for site in ROOT_SITES:
+                o = overrides(s, "KIDNEY_MULTISITE", "natural", 0.3, seed, root_site=site)
+                jobs[make_run_key(tracker_config(o))] = o
 
     order = {p: i for i, p in enumerate(ORDER)}
     queue = [{"key": k, "phase": phase_of(o), "overrides": o} for k, o in jobs.items()]

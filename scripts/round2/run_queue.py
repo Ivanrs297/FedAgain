@@ -43,6 +43,7 @@ PHASE_NAMES = {
     "P4": "label-flip attack",
     "P5": "multi-site envelope (rho 0 / 0.6)", "P6": "trust ablation",
     "P7": "normalization", "P8": "epsilon sweep",
+    "P10": "RFLPA/BOBA server root-set dependence",
 }
 
 

@@ -88,8 +88,9 @@ def srcpaper_dir():
 #   nm-<mode>  trust-normalization sweep   (keeps trust_mode=combined_mult!)
 #   tm-<mode>  trust-formulation ablation  (non-multiplicative variants)
 #   _mix<l>    trust/data-size mixing (round 2; keeps the default trust mode!)
-# Every analysis that reports "FedAgain" must exclude all five.
-VARIANT_TAGS = ("pm-", "_eps", "nm-", "_mix")
+#   _root*     RFLPA/BOBA server root-set variants (round 2: size, corrupted, one site)
+# Every analysis must exclude all six.
+VARIANT_TAGS = ("pm-", "_eps", "nm-", "_mix", "_root")
 
 
 def is_canonical(row):

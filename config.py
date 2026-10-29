@@ -46,6 +46,10 @@ FEDDYN_ALPHA = 1.0  # FedDyn dynamic-reg coeff. 1.0 (not the paper default 0.1) 
 FEDDYN_CLIP = 10.0  # FedDyn: gradient-norm clip for local training stability
 # Reference-based robust baselines (need a clean server root set; see load_data).
 SERVER_ROOT_PER_CLASS = 20  # samples/class carved for RFLPA/BOBA server reference (0=off)
+# Root-set dependence study (round 2): how much RFLPA/BOBA lose when the server
+# set is not the idealised clean, all-site one. Non-defaults are tagged _root*.
+SERVER_ROOT_MODE = "clean"  # "clean" | "corrupted" (root images get the client corruption)
+SERVER_ROOT_SITE = ""  # KIDNEY_MULTISITE only: "" = all sites, else "A"/"B"/"C"
 RFLPA_SERVER_EPOCHS = 1  # RFLPA/FLTrust: local epochs to train the server reference update
 # BOBA (Bao et al., AISTATS 2024): Byzantine-robust under label skew.
 BOBA_NUM_BYZ = 2  # f: Byzantine budget (trims f, keeps n-f); need n-f > num_classes-1

@@ -980,7 +980,7 @@ def _extract_labels(dataset):
     return np.array([dataset[i][1] for i in range(len(dataset))])
 
 
-def carve_server_root(train_dataset, per_class, num_classes, seed):
+def carve_server_root(train_dataset, per_class, num_classes, seed, site=""):
     """Carve a class-balanced clean server root set out of the training data.
 
     Used by reference-based robust baselines (RFLPA/FLTrust, BOBA) that assume a
@@ -992,17 +992,26 @@ def carve_server_root(train_dataset, per_class, num_classes, seed):
     downstream partitioners keep their fast label path), ``root_subset`` is the
     balanced server set, and ``root_labels`` are its integer labels (for building
     per-class references, e.g. BOBA vertices).
+
+    ``site`` (KIDNEY_MULTISITE only) restricts the root set to one acquisition
+    site, i.e. a server that only holds data from one hospital; classes that site
+    lacks are then simply absent from the root set.
     """
     from torch.utils.data import Subset
     labels = _extract_labels(train_dataset)
     rng = np.random.RandomState(seed)
     root_idx, keep_idx = [], []
+    in_site = np.ones(len(labels), dtype=bool)
+    if site:
+        in_site = _site_group_arrays(train_dataset)[0] == site
     for c in range(num_classes):
-        idx_c = np.where(labels == c)[0]
+        idx_c = np.where((labels == c) & in_site)[0]
         rng.shuffle(idx_c)
         take = min(per_class, len(idx_c))
         root_idx.extend(idx_c[:take].tolist())
         keep_idx.extend(idx_c[take:].tolist())
+    if site:  # samples of the other sites all stay with the clients
+        keep_idx.extend(np.where(~in_site)[0].tolist())
     rng.shuffle(root_idx)
     keep_idx = sorted(keep_idx)
     remaining = Subset(train_dataset, keep_idx)
@@ -1017,7 +1026,8 @@ def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: i
               dirichlet_alpha: float = 0.5,
               seed: int = 42,
               num_workers: int = 0,
-              server_root_per_class: int = 0) -> Tuple[List[DataLoader], List[DataLoader], DataLoader, Dict]:
+              server_root_per_class: int = 0, server_root_mode: str = "clean",
+              server_root_site: str = "", server_root_severity: int = 3) -> Tuple[List[DataLoader], List[DataLoader], DataLoader, Dict]:
     """
     Load and partition the specified dataset for federated learning.
     
@@ -1040,7 +1050,14 @@ def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: i
     server_root = None
     if server_root_per_class and server_root_per_class > 0:
         train_dataset, root_subset, root_labels = carve_server_root(
-            train_dataset, server_root_per_class, dataset_info["num_classes"], seed)
+            train_dataset, server_root_per_class, dataset_info["num_classes"], seed,
+            site=server_root_site)
+        if server_root_mode == "corrupted":
+            # The server's own reference data are degraded like a corrupted client's.
+            root_subset = CorruptedDataset(root_subset, severity=server_root_severity,
+                                           seed=seed + 10007)
+        elif server_root_mode != "clean":
+            raise ValueError(f"unknown SERVER_ROOT_MODE {server_root_mode!r}")
         server_root = {
             "loader": DataLoader(root_subset, batch_size=batch_size, shuffle=True,
                                  num_workers=num_workers, pin_memory=True),
@@ -1048,7 +1065,8 @@ def load_data(dataset_name: str = "EMNIST", num_clients: int = 10, batch_size: i
             "labels": root_labels,
         }
         print(f"  - Server root set: {len(root_subset)} samples "
-              f"({server_root_per_class}/class) carved out for reference-based defense")
+              f"({server_root_per_class}/class) carved out for reference-based defense"
+              f" [mode={server_root_mode}, site={server_root_site or 'all'}]")
 
     # Partition training data based on distribution type
     if distribution == "iid":

@@ -381,6 +381,7 @@ if __name__ == "__main__":
     # incrementally (per round) and lets already-completed runs be skipped on
     # resume, which matters for long, failure-prone experiment sweeps.
     is_fedagain = config.STRATEGY == "FedAgain"
+    uses_root = config.STRATEGY in ("RFLPA", "BOBA")
     tracker_config = {
         "model": config.MODEL_NAME.upper(),
         "strategy": config.STRATEGY,
@@ -403,6 +404,9 @@ if __name__ == "__main__":
         "norm_mode": getattr(config, "FEDAGAIN_NORM_MODE", "sum_to_one") if is_fedagain else "",
         "norm_temperature": getattr(config, "FEDAGAIN_NORM_TEMPERATURE", 1.0) if is_fedagain else "",
         "mix_lambda": getattr(config, "FEDAGAIN_MIX_LAMBDA", 0.0) if is_fedagain else "",
+        "root_per_class": getattr(config, "SERVER_ROOT_PER_CLASS", 20) if uses_root else "",
+        "root_mode": getattr(config, "SERVER_ROOT_MODE", "clean") if uses_root else "",
+        "root_site": getattr(config, "SERVER_ROOT_SITE", "") if uses_root else "",
         "seed": getattr(config, "SEED", 42),
         "data_version": DATA_VERSION,
     }
@@ -451,6 +455,9 @@ if __name__ == "__main__":
         num_workers=getattr(config, "NUM_WORKERS", 0),
         server_root_per_class=(getattr(config, "SERVER_ROOT_PER_CLASS", 20)
                                if config.STRATEGY in ("RFLPA", "BOBA") else 0),
+        server_root_mode=getattr(config, "SERVER_ROOT_MODE", "clean"),
+        server_root_site=getattr(config, "SERVER_ROOT_SITE", ""),
+        server_root_severity=getattr(config, "CORRUPTION_SEVERITY", 3),
     )
 
     print(f"\nDataset Information:")
@@ -546,14 +553,17 @@ if __name__ == "__main__":
             from torch.utils.data import Subset, DataLoader as _DL
             _root = dataset_info["server_root"]["dataset"]
             _rlabels = dataset_info["server_root"]["labels"]
+            # A single-site root set (SERVER_ROOT_SITE) can lack classes: the
+            # server can only build vertices for the classes it actually holds.
             boba_class_loaders = []
-            for _z in range(dataset_info["num_classes"]):
+            for _z in sorted(set(_rlabels.tolist())):
                 _idx = np.where(_rlabels == _z)[0].tolist()
                 boba_class_loaders.append(_DL(Subset(_root, _idx),
                                               batch_size=config.BATCH_SIZE, shuffle=True))
+            _c = len(boba_class_loaders)
             print(f"  - BOBA: f={getattr(config, 'BOBA_NUM_BYZ', 2)}, "
-                  f"{dataset_info['num_classes']} class vertices, "
-                  f"need n-f > c-1 ({config.NUM_CLIENTS}-f > {dataset_info['num_classes']-1})")
+                  f"{_c}/{dataset_info['num_classes']} class vertices, "
+                  f"need n-f > c-1 ({config.NUM_CLIENTS}-f > {_c-1})")
 
     print("\n" + "=" * 70)
     print(f"Starting Federated Learning with {config.STRATEGY}...")
@@ -790,7 +800,7 @@ if __name__ == "__main__":
                     off += size
                 return out
 
-            c = dataset_info["num_classes"]
+            c = len(boba_class_loaders)  # = num_classes unless the root set lacks classes
             target_steps = max(1, int(np.mean([len(tl) for tl in train_loaders]))
                                * config.LOCAL_EPOCHS)
             # c simplex vertices: global model trained on each single-class root subset.
