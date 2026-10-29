@@ -54,3 +54,7 @@ Media Review*.docx
 results_v2/logs/
 results_v2/.queue.lock
 results_v2/PAUSE
+
+# Project notes for Claude Code: they summarise the confidential review
+# (reviewer comments, data findings) -> local only, never in the public repo.
+CLAUDE.md
