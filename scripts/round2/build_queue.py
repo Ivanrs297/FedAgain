@@ -11,9 +11,10 @@ Phase order (most important first, so a partial run is already useful):
   P7  normalization        FedAgain sum_to_one / softmax / rank
   P8  epsilon sweep
   P9  trust/data-size mixing  FedAgain lambda in {0.3, 0.5}: multi-site
-      rho in {0, 0.3}, clinical rho in {0.3, 0.6}                     (48)
+      rho in {0, 0.3, 0.6}, clinical rho in {0.3, 0.6}                (54)
       Runs right after P3 (see ORDER): added 2026-10-27 after P2 showed
       FedAgain over-weighting site A under real domain shift.
+      Multi-site rho=0.6 (6 jobs) added 2026-10-29.
 
 P1, P3, P4, P6-P8 replicate EXACTLY the 684 clinical v1 runs: each job is
 rebuilt from its v1 manifest (results/runs/*.json) and its run key is checked
@@ -41,7 +42,7 @@ SEEDS = (42, 43, 44)
 MULTISITE_P2 = (0.3,)
 MULTISITE_P5 = (0.0, 0.6)
 MIX_LAMBDAS = (0.3, 0.5)
-MIX_MULTISITE_RHOS = (0.0, 0.3)
+MIX_MULTISITE_RHOS = (0.0, 0.3, 0.6)
 MIX_CLINICAL_RHOS = (0.3, 0.6)
 # Execution order of the phases (P9 was added later but runs after P3).
 ORDER = ["P1", "P2", "P3", "P9", "P4", "P5", "P6", "P7", "P8"]
