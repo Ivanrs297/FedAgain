@@ -6,7 +6,7 @@
 set -u
 cd "$(dirname "$0")/../.."
 export FEDAGAIN_RESULTS_DIR=results_v2 FEDAGAIN_DATA_VERSION=v2 FEDAGAIN_CLINICAL_ONLY=1
-PY=/home/ivanrs/miniconda3/bin/python
+PY="${PYTHON:-python3}"
 OUT=results_v2/analysis
 mkdir -p "$OUT"
 status=0

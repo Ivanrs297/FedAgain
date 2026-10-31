@@ -53,20 +53,20 @@ IMG_EXT = (".png", ".jpg", ".jpeg")
 
 
 def source_image(fname):
-    """Strip the patch index: '25962 - surface 2-17.png' -> '25962 - surface 2'."""
+    """Strip the patch index: '12345 - surface 2-17.png' -> '12345 - surface 2'."""
     return re.sub(r"-\d+(\s*\(\d+\))?\.(png|jpe?g)$", "", fname, flags=re.I)
 
 
 def specimen_key(dataset, src):
     """Specimen group of a source image, plus the rule that produced it."""
     if dataset == "JONATHAN":
-        # '25962 - surface 2', 'm1 - 25962 - surface 2' (augmented copy)
+        # '12345 - surface 2', 'm1 - 12345 - surface 2' (augmented copy)
         m = re.search(r"(?<!\d)(\d{4,6})(?!\d)", src)
         if m:
             return m.group(1), "id"
     else:
-        # Specimen numbers: 72222, N4065, T71883, LC3584 (prefix dropped so that
-        # 'N19226' and '19226' meet); camera frame numbers DSC_1191 as fallback.
+        # Specimen numbers: 10001, N10002, T10003, LC1004 (prefix dropped so that
+        # 'N10001' and '10001' meet); camera frame numbers DSC_0001 as fallback.
         m = re.search(r"(?<![A-Za-z0-9])(?:N|T|LC)?(\d{4,6})(?!\d)", src.replace("DSC_", "DSC"))
         if m and not src[max(0, m.start() - 3):m.start()].upper().endswith("DSC"):
             return m.group(1), "id"
