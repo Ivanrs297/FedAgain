@@ -160,7 +160,7 @@ def main():
     tex = "\n".join(lines) + "\n"
     with open(os.path.join(OUTDIR, "baseline_table.tex"), "w") as f:
         f.write(tex)
-    print("\n=== LaTeX table written to results/baselines/baseline_table.tex ===\n")
+    print(f"\n=== LaTeX table written to {os.path.join(OUTDIR, 'baseline_table.tex')} ===\n")
     print(tex)
 
     # ---- grouped-bar figure (accuracy) ----

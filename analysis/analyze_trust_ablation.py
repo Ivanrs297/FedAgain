@@ -27,8 +27,11 @@ import matplotlib.pyplot as plt
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _datasets import RESULTS as RES, srcpaper_dir  # results tree (v1/v2)
-OUT = os.path.join(ROOT, "results_analysis", "trust_ablation")
+from _datasets import RESULTS as RES, RESULTS_NAME, srcpaper_dir  # results tree (v1/v2)
+# v1 keeps its historical (tracked) location; any other tree writes inside itself
+# so a v2 run can never overwrite the v1 outputs.
+OUT = (os.path.join(ROOT, "results_analysis", "trust_ablation") if RESULTS_NAME == "results"
+       else os.path.join(RES, "analysis", "trust_ablation"))
 os.makedirs(OUT, exist_ok=True)
 
 MODES = ["benchmark_only", "divergence_only", "combined_mult", "additive",
